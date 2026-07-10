@@ -1836,6 +1836,43 @@ const MODELS={
     view:{rotY:0.5,rotX:-0.2,dist:10},
     parts:{camera:/(?<![a-z])(?:camera|body|lens)s?(?![a-z])/i,
            tripod:/(?<![a-z])(?:tripod|stand|legs)s?(?![a-z])/i}},
+  // ---- PREMIUM ADD 2026-07-10 (all curl-verified 200, CORS-reliable sources) ----
+  dragon:{title:'DRAGON',sub:'MYTHIC BEAST / KHRONOS SAMPLE / CC',
+    url:'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/DragonAttenuation/glTF-Binary/DragonAttenuation.glb',
+    spec:[['CLASS','WYRM'],['LICENSE','CC0'],['FORMAT','GLB'],['SIZE','6.4 MB'],['MODE','WIREFRAME']],
+    parts:{head:/(?<![a-z])(?:head|skull|jaw|horn)s?(?![a-z])/i,wings:/(?<![a-z])(?:wing|membrane)s?(?![a-z])/i,
+           tail:/(?<![a-z])tails?(?![a-z])/i,body:/(?<![a-z])(?:body|torso|spine|scale)s?(?![a-z])/i,
+           legs:/(?<![a-z])(?:leg|claw|foot|limb)s?(?![a-z])/i}},
+  gearbox:{title:'GEARBOX ASSEMBLY',sub:'MECHANICAL / KHRONOS SAMPLE / CC',
+    url:'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@main/2.0/GearboxAssy/glTF-Binary/GearboxAssy.glb',
+    spec:[['TYPE','TRANSMISSION'],['LICENSE','CC-BY'],['FORMAT','GLB'],['SIZE','5.0 MB'],['MODE','WIREFRAME']],
+    parts:{gears:/(?<![a-z])(?:gear|cog|sprocket|tooth)s?(?![a-z])/i,shaft:/(?<![a-z])(?:shaft|axle|spindle)s?(?![a-z])/i,
+           bearing:/(?<![a-z])(?:bearing|bushing|race)s?(?![a-z])/i,housing:/(?<![a-z])(?:housing|case|casing|cover|bolt)s?(?![a-z])/i}},
+  horse:{title:'GALLOPING HORSE',sub:'ANIMATED / THREE.JS EXAMPLE / MIT',
+    url:'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/models/gltf/Horse.glb',
+    spec:[['GAIT','GALLOP'],['LICENSE','MIT'],['FORMAT','GLB'],['SIZE','0.2 MB'],['MODE','WIREFRAME']],
+    parts:{head:/(?<![a-z])(?:head|neck|mane)s?(?![a-z])/i,body:/(?<![a-z])(?:body|torso|back)s?(?![a-z])/i,
+           legs:/(?<![a-z])(?:leg|hoof|hooves|knee)s?(?![a-z])/i,tail:/(?<![a-z])tails?(?![a-z])/i}},
+  flamingo:{title:'FLYING FLAMINGO',sub:'ANIMATED / THREE.JS EXAMPLE / MIT',
+    url:'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/models/gltf/Flamingo.glb',
+    spec:[['MOTION','FLIGHT'],['LICENSE','MIT'],['FORMAT','GLB'],['SIZE','0.1 MB'],['MODE','WIREFRAME']],
+    parts:{wings:/(?<![a-z])(?:wing|feather)s?(?![a-z])/i,body:/(?<![a-z])(?:body|torso)s?(?![a-z])/i,
+           neck:/(?<![a-z])(?:neck|head|beak)s?(?![a-z])/i,legs:/(?<![a-z])(?:leg|foot)s?(?![a-z])/i}},
+  scifi_helmet:{title:'SCI-FI HELMET',sub:'SPACE / KHRONOS SAMPLE / CC',
+    url:'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/SciFiHelmet/glTF/SciFiHelmet.gltf',
+    spec:[['CLASS','EVA'],['LICENSE','CC-BY'],['FORMAT','GLTF'],['SIZE','4.5 MB'],['MODE','WIREFRAME']],
+    parts:{visor:/(?<![a-z])(?:visor|glass|lens|eye)s?(?![a-z])/i,frame:/(?<![a-z])(?:frame|shell|body|helmet)s?(?![a-z])/i,
+           vents:/(?<![a-z])(?:vent|grill|intake)s?(?![a-z])/i}},
+  espresso:{title:'ESPRESSO MACHINE',sub:'APPLIANCE / THREE.JS EXAMPLE / CC',
+    url:'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/models/gltf/coffeemat.glb',
+    spec:[['TYPE','BARISTA'],['LICENSE','CC-BY'],['FORMAT','GLB'],['SIZE','4.8 MB'],['MODE','WIREFRAME']],
+    parts:{boiler:/(?<![a-z])(?:boiler|tank|body)s?(?![a-z])/i,group:/(?<![a-z])(?:portafilter|group|spout|nozzle)s?(?![a-z])/i,
+           panel:/(?<![a-z])(?:panel|button|dial|gauge)s?(?![a-z])/i}},
+  city:{title:'VIRTUAL CITY',sub:'URBAN BLOCK / KHRONOS SAMPLE / CC',
+    url:'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@main/2.0/VC/glTF-Binary/VC.glb',
+    spec:[['SCALE','DISTRICT'],['LICENSE','CC-BY'],['FORMAT','GLB'],['SIZE','3.1 MB'],['MODE','WIREFRAME']],
+    parts:{building:/(?<![a-z])(?:building|tower|house|wall)s?(?![a-z])/i,road:/(?<![a-z])(?:road|street|ground|path)s?(?![a-z])/i,
+           vehicle:/(?<![a-z])(?:car|truck|vehicle|bus)s?(?![a-z])/i}},
 };
 // Thin show/hide stubs. They delegate to the Three.js module if it's loaded, else queue the request.
 window.holo3dShow = holo3dShow;   // exposed for headless tests
@@ -2178,8 +2215,7 @@ async function pingBrain(){
     // SELF-HEAL: a persisted brain URL that has gone stale/dead -> after 3 straight misses, forget it and
     // let auto-discovery re-find the live tunnel (so a dead saved URL can't sit falsely showing a link).
     if((window._pingFails=(window._pingFails||0)+1)>=3){
-      try{localStorage.removeItem('jarvisBrain');}catch(_){}
-      BRAIN=''; window.BRAIN=''; try{window.__rediscoverBrain&&window.__rediscoverBrain();}catch(_){}
+      BRAIN=''; window.BRAIN=''; try{window.__rediscoverBrain&&window.__rediscoverBrain();}catch(_){}   // KEEP the saved override (localStorage) so a blip can't permanently wipe it; rediscovery re-commits it
     }
   }
   if(cpuHist.length){const cpu=cpuHist[cpuHist.length-1];
@@ -2583,7 +2619,7 @@ const MAP=[
 // that lacks this header -- which would break every brain call from the Quest. Inject it for all requests
 // to an ngrok host so the headset always gets the real API, not the warning page. (Runs before any fetch.)
 (function(){ const _f=window.fetch; if(_f&&!window.__ngrokShim){ window.__ngrokShim=1;
-  window.fetch=function(u,o){ try{ const s=(typeof u==='string')?u:(u&&u.url)||''; if(s.indexOf('ngrok')!==-1){ o=Object.assign({},o); o.headers=Object.assign({'ngrok-skip-browser-warning':'true'},(o&&o.headers)||{}); } }catch(_){} return _f.call(this,u,o); }; } })();
+  window.fetch=function(u,o){ try{ const s=(typeof u==='string')?u:(u&&u.url)||''; if(s.indexOf('ngrok')!==-1){ o=Object.assign({},o); const _hh=new Headers((o&&o.headers)||{}); _hh.set('ngrok-skip-browser-warning','true'); o.headers=_hh; } }catch(_){} return _f.call(this,u,o); }; } })();
 // ---- AI-first: real questions go to the Claude brain; utilities stay instant; keyword fallback if the brain is offline ----
 // BRAIN is overridable so the SAME static build works locally AND when hosted (Netlify/Oculus):
 //   - ?brain=https://my-brain.example  (one-time, also remembered)  OR  localStorage 'jarvisBrain'
@@ -7490,17 +7526,11 @@ function _makeWorkbench(desk) {
     s.rotation.x = -Math.PI/2; s.position.set(x,0,z); G.add(s); box(w+0.02,0.03,d+0.02,x,-0.02,z,0.7); };
   topSurf(1.50,0.82, 0, 0);            // MAIN top -- front edge (+Z) toward the user
   topSurf(0.72,1.15, 1.11, -0.165);    // RETURN wing on the RIGHT (+X), running back -> the L
-  // FLOOR-STANDING pedestal drawer units: bodies reach the floor; 3 chrome drawer seams on the FRONT (+Z, toward you)
-  const pedestal = (x,z,w) => { box(w,0.60,0.52,x,-DH+0.30,z,0.5);   // body: centre -0.42 -> bottom -0.72 sits ON the floor
-    for (let i=0;i<3;i++){ const dy=-0.20-i*0.16; box(w*0.9,0.006,0.006,x,dy,z+0.262,0.55,CH); box(0.10,0.022,0.014,x,dy,z+0.265,0.75,CH); } };
-  pedestal(-0.55, 0.00, 0.44);         // under the main top (left)
-  pedestal( 1.11,-0.50, 0.44);         // under the return
-  // outer leg panels down to the floor
-  box(0.03,DH,0.80, 0.72,-DH/2, 0.00,0.35);
-  box(0.03,DH,1.12, 1.45,-DH/2,-0.165,0.35);
-  // cable grommet on the main top
-  const gr = new THREE.Mesh(new THREE.TorusGeometry(0.03,0.006,8,20), new THREE.MeshBasicMaterial({ color:CY, transparent:true, opacity:0.7, blending:THREE.AdditiveBlending, depthWrite:false }));
-  gr.rotation.x = -Math.PI/2; gr.position.set(-0.5,0.006,-0.3); G.add(gr);
+  // CLEAN floor-standing legs only -- the drawer-pedestal units + cable grommet were removed (they cluttered
+  // the desk / "took too much space" per the user); the L-top now stands on slim legs, still on the real floor.
+  box(0.03,DH,0.80,-0.72,-DH/2, 0.00,0.35);   // left leg (main top)
+  box(0.03,DH,0.80, 0.72,-DH/2, 0.00,0.35);   // right leg (main top)
+  box(0.03,DH,1.12, 1.45,-DH/2,-0.165,0.35);  // far leg (under the return wing)
   G.userData._isPanel = true; G.userData._static = true; G.userData._panelType = 'workbench'; G.userData._desk = true;
   return G;
 }
