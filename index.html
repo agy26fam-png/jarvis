@@ -3777,6 +3777,9 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
         : /\b(fist bump|pound it|bump it|give me (?:a bump|a five|five)|high ?five)\b/.test(rest) ? 'bump'
         : /\b(lights? off|light off|kill the light|that'?s enough light)\b/.test(rest) ? 'lightoff'
         : /\b(hold the light|light my way|lights? (?:on|up)|shine|illuminate|torch)\b/.test(rest) ? 'light'
+        : /\b(stop (?:recording|filming)|cut it|end recording|stop the camera)\b/.test(rest) ? 'filmoff'
+        : /\b(film me|record me|start (?:recording|filming)|you'?re rolling|roll (?:the )?camera|record this)\b/.test(rest) ? 'film'
+        : /\b(pour (?:me )?(?:a )?(?:drink|smoothie|coffee|water)|make me a (?:drink|smoothie)|get me a drink|fix me a drink)\b/.test(rest) ? 'pour'
         : /\bpoint|look|show me\b/.test(rest) ? 'point'
         : /\bfire|extinguish|put out|spray|flame\b/.test(rest) ? 'spray'
         : 'wave';   // bare "dum-e" or a greeting -> wave hello
@@ -8647,6 +8650,9 @@ window.__xrDume = function (cmd) {   // DUM-E's brain: perform a real action + t
     else if (cmd === 'lightoff'){ u.lightOn=false; u.action=null; window.speak && window.speak('Lights off, sir.', 'normal'); }
     else if (cmd === 'powerdown') { u.powered = false; u.action = null; window.speak && window.speak('Powering down, sir.', 'normal'); }
     else if (cmd === 'powerup')   { u.powered = true;  u.action = null; window.speak && window.speak('Back online, sir.', 'confident'); }
+    else if (cmd === 'film')  { u.filming = true;  u.lightOn = false; window.speak && window.speak(pick(['Rolling, sir.','Recording, sir.','You are on camera, sir.']), 'confident'); }
+    else if (cmd === 'filmoff'){ u.filming = false; window.speak && window.speak(pick(['Cut, sir.','And we are clear, sir.']), 'normal'); }
+    else if (cmd === 'pour')  { window.speak && window.speak(pick(['One drink, sir.','Coming right up, sir.','A smoothie, sir?']), 'confident'); }
     window.tone && window.tone(880, 0.06, 'sine', 0.05);
   } catch(_){}
   return true;
@@ -8976,6 +8982,9 @@ function _updateForge() {
     const e = Math.sin(Math.min(1, aT) * Math.PI); s1 = u.s1Base + 0.30 + 0.25*e; s2 = u.s2Base + 0.20 + 0.20*e; headX = -0.05;
     clawOpen = aT < 0.66 ? 0.6 : 0;
     if (aT >= 0.66 && !u._bumped) { u._bumped = true; try { window.tone && window.tone(320, 0.08, 'sine', 0.06); u.head.getWorldPosition(_dumeTmp); window.__xrParticleBurst && window.__xrParticleBurst(_dumeTmp); } catch(_){} } }
+  else if (u.action === 'pour')  {   // extend the claw and TILT to pour, a liquid stream falling from the lip
+    const e = Math.sin(Math.min(1, aT/1.4) * Math.PI); s1 = u.s1Base + 0.26 + 0.16*e; s2 = u.s2Base + 0.34; headX = 0.30 + 0.18*e; clawOpen = 0.5;
+    if (aT > 0.5 && aT < 2.1 && Math.random() < 0.7) { try { u.head.getWorldPosition(_dumeTmp); _dumeTmp.y -= 0.06; window.__xrParticleBurst && window.__xrParticleBurst(_dumeTmp); } catch(_){} } }
   // HOLD THE LIGHT: raise the boom, open the claw, aim a soft light cone at you (his classic "a little to the
   // left" bit). Persistent (u.lightOn) until "lights off"; skipped while fetching.
   if (u.lightOn && !u.gripPhase) {
@@ -8989,6 +8998,19 @@ function _updateForge() {
       while (ly > Math.PI) ly -= 2*Math.PI; while (ly < -Math.PI) ly += 2*Math.PI;
       u.turn.rotation.y += (ly - u.turn.rotation.y) * 0.08; headX = -0.08; } catch(_){}
   } else if (u.lightCone) u.lightCone.visible = false;
+  // FILM ME: hold a steady 'camera' pose, aim the eye at you, and blink a red REC tally by the lens.
+  if (u.filming && !u.gripPhase) {
+    if (!u.recLight) { const r = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 8),
+      new THREE.MeshBasicMaterial({ color:0xff3b3b, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false }));
+      r.position.set(0.032, 0.02, 0.05); u.head.add(r); u.recLight = r; }
+    u.recLight.visible = true; u.recLight.material.opacity = 0.45 + 0.55*Math.abs(Math.sin(u.t*4));   // blinking tally light
+    s1 = u.s1Base + 0.20; s2 = u.s2Base + 0.15; clawOpen = 0;   // steady, two-handed-camera hold
+    try { const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam); _forge.arm.getWorldPosition(_dumeTmp2);
+      let ly = Math.atan2(_dumeCam.x - _dumeTmp2.x, _dumeCam.z - _dumeTmp2.z) - _forge.arm.rotation.y;
+      while (ly > Math.PI) ly -= 2*Math.PI; while (ly < -Math.PI) ly += 2*Math.PI;
+      u.turn.rotation.y += (ly - u.turn.rotation.y) * 0.10;
+      headX = Math.max(-0.4, Math.min(0.4, -(_dumeCam.y - _dumeTmp2.y - 1.4) * 0.2)); } catch(_){}
+  } else if (u.recLight) u.recLight.visible = false;
   // FETCH GRIP POSE overrides the idle sway ONLY during a "bring this to me" (gripPhase set) -- so this can't
   // disturb DUM-E's normal idle. reach/grip = bend the boom DOWN-forward with the claw open, then closed;
   // carry = hold it up and in while wheeling back. Angles clamped; hydraulics (seg1/seg2) read as the motion.
@@ -9018,7 +9040,7 @@ function _updateForge() {
   for (const c of u.claw) { c.j.rotation.z = c.base.z * (1 - clawOpen*1.5); c.j.rotation.x = c.base.x * (1 - clawOpen*1.5); }
   // RECENTRE THE TURRET when idle: shake/dance twist u.turn and the model-tracker only corrects it while a
   // hologram is up, so with no model the yaw would otherwise stay stuck off-axis forever.
-  if (!u.action && !u.lightOn) { const _trk = !u.nav.carried && window._h3d && window._h3d.cur && typeof root !== 'undefined' && root && root.parent;
+  if (!u.action && !u.lightOn && !u.filming) { const _trk = !u.nav.carried && window._h3d && window._h3d.cur && typeof root !== 'undefined' && root && root.parent;
     if (!_trk) u.turn.rotation.y += (0 - u.turn.rotation.y) * 0.05; }
   u.eye.material.opacity = (u.powered === false ? 0.12 : 0.7 + 0.3*Math.sin(u.t*3));   // camera-eye glow (dims when off)
   // destination marker: pulse it while he's travelling to / waiting at a "go over there" spot, else hide
