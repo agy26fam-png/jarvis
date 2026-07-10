@@ -3692,6 +3692,11 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
     const f=/reset/.test(t)?0:/(bigger|larger|grow|expand|enlarge)/.test(t)?1.25:0.8;
     const s=window.__xrBenchResize&&window.__xrBenchResize(f);
     speak(f===0?"Workbench reset, sir.":f>1?"Enlarging the workbench, sir.":"Shrinking the workbench, sir.","normal");return;}
+  // FORGE RELICS -- unlock/lock the bench props (reactor / helmet / gauntlet / holo) for grabbing on request
+  if(/\b(move|unlock|release|free|grab)(?: the| my)? (?:forge |bench )?(relics|props|reactor|helmet|gauntlet|artifacts|items|models on the (?:desk|bench))\b/.test(t)){
+    window._forgePropsMovable=true; speak("Relics unlocked, sir. Grab and move them as you like.","confident");return;}
+  if(/\b(lock|secure|fix|put back|reset)(?: the)? (?:forge |bench )?(relics|props|artifacts)\b/.test(t)){
+    window._forgePropsMovable=false; speak("Relics locked, sir.","normal");return;}
   // WAR TABLE (MK-III)
   if(/\b(hide|stow|dismiss|close) (?:the )?war ?table\b/.test(t)){
     window.__xrWarTable&&window.__xrWarTable(false);speak("War table stowed, sir.","normal");return;}
@@ -5668,6 +5673,9 @@ function _directGrabTarget(hand) {
   if (_arNebula) { _arNebula.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < bestD) { bestD = d; best = { kind:'nebula', obj: _arNebula }; } }
   if (_earthProj) { _earthProj.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < bestD) { bestD = d; best = { kind:'obj', obj: _earthProj }; } }
   if (_warTable) { _warTable.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < bestD) { bestD = d; best = { kind:'obj', obj: _warTable }; } }
+  // FORGE RELICS (reactor / helmet / gauntlet / holo) -- grabbable ONLY when you've unlocked them by voice
+  // ("move the relics"), so casual grabbing never disturbs the display. Same close-proximity rule as everything.
+  if (window._forgePropsMovable && window._forgePropItems) { for (const it of window._forgePropItems) { if (!it) continue; it.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < bestD) { bestD = d; best = { kind:'obj', obj: it }; } } }
   // NO distance fallback. Direct grab requires your hand to actually be AT the object (within ~30cm of its
   // surface/centre) -- that is what makes it feel like real physicality and one hand alone can hold it. To move
   // something far away you POINT at it (the ray) and close your fist: _updateXRGrab falls back to the ray target.
@@ -8464,7 +8472,7 @@ function _makeHelperArm() {
     nav: { state:'idle', tx:0, tz:0, carried:null, home:null, wanderT:0 } };
   return G;
 }
-const _dumeTmp = new THREE.Vector3(), _dumeTmp2 = new THREE.Vector3();
+const _dumeTmp = new THREE.Vector3(), _dumeTmp2 = new THREE.Vector3(), _dumeSh = new THREE.Vector3();
 window.__xrDume = function (cmd) {   // DUM-E's brain: perform a real action + the matching gesture
   if (!_forge || !_forge.arm) { try { window.speak && window.speak('The forge is offline, sir. Say "forge" first.', 'normal'); } catch(_){} return false; }
   const u = _forge.arm.userData; u.action = cmd; u.actionT0 = performance.now();
@@ -8505,9 +8513,10 @@ function _dumeNavStep(u) {
   nav.arriveT = (nav.arriveT || 0) + 0.016;   // ARRIVED
   if (nav.state === 'wander') { nav.state = 'idle'; return false; }
   if (nav.state === 'goModel') {
-    // REACH + GRIP: hold a reach-DOWN pose (claw open) ~1.1s while the boom bends to the model, then the claw
-    // closes and SEIZES it. Attaching keeps world transform, so we then snap the model to the claw grip point
-    // -- otherwise it stays welded wherever it was (the "connected to a random part of the body" bug).
+    // REACH + GRIP: the boom bends via 2-link IK to the model's ACTUAL position (captured each frame while it's
+    // still on the bench), the claw closes and SEIZES it, then we snap the model to the claw grip point -- else
+    // it stays welded wherever it was (the "connected to a random part of the body" bug).
+    if (!nav.carried && typeof root !== 'undefined' && meshData.length) { root.getWorldPosition(_dumeTmp); (u.gripTarget || (u.gripTarget = new THREE.Vector3())).copy(_dumeTmp); }
     u.gripPhase = 'reach';
     if (nav.arriveT < 1.1) return true;   // _updateForge drives the bend + open claw during this window
     u.gripPhase = 'grip';
@@ -8521,7 +8530,7 @@ function _dumeNavStep(u) {
     if (nav.carried) { try { scene.attach(nav.carried); const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
         _dumeFwd.set(0,0,-1).applyQuaternion(cam.quaternion); _dumeFwd.y=0; _dumeFwd.normalize();
         nav.carried.position.copy(_dumeCam).addScaledVector(_dumeFwd, 0.5); nav.carried.position.y = _dumeCam.y - 0.25; } catch(_){}
-      nav.carried = null; u.gripPhase = null; try { window.speak && window.speak(pick(['There you go, sir.','For you, sir.']), 'confident'); } catch(_){} }
+      nav.carried = null; u.gripPhase = null; u.gripTarget = null; try { window.speak && window.speak(pick(['There you go, sir.','For you, sir.']), 'confident'); } catch(_){} }
     nav.state = 'goHome'; const h = nav.home || arm.position; nav.tx = h.x; nav.tz = h.z; nav.arriveT = 0; return true;
   }
   if (nav.state === 'goHome') { nav.state = 'idle'; return false; }
@@ -8573,8 +8582,26 @@ function _updateForge() {
   // disturb DUM-E's normal idle. reach/grip = bend the boom DOWN-forward with the claw open, then closed;
   // carry = hold it up and in while wheeling back. Angles clamped; hydraulics (seg1/seg2) read as the motion.
   if (u.gripPhase === 'reach' || u.gripPhase === 'grip') {
-    const e = Math.min(1, (u.nav.arriveT || 0) / 0.6);   // eases in over the first ~0.6s after DUM-E arrives
-    s1 = u.s1Base + 0.7*e; s2 = u.s2Base - 0.55*e; headX = 0.42*e; clawOpen = (u.gripPhase === 'reach') ? 0.7 : 0;
+    // 2-LINK IK so the boom bends to the model's ACTUAL height. seg1/seg2 pivot about Z with links along +Y at
+    // rest, so a link at rotation.z=t points (-sin t, cos t) -> its angle from the forward axis is t+PI/2; hence
+    // seg1.z = shoulderAngle - PI/2, seg2.z = the relative elbow angle. Clamped + eased; fetch-scoped, so even a
+    // wrong sign is only a slightly-off reach (the model is seized at the claw grip point regardless).
+    let s1t = u.s1Base + 0.6, s2t = u.s2Base - 0.45, hxt = 0.4;
+    if (u.gripTarget) { try {
+      u.seg1.parent.getWorldPosition(_dumeSh);
+      const rr = Math.hypot(u.gripTarget.x - _dumeSh.x, u.gripTarget.z - _dumeSh.z), yy = u.gripTarget.y - _dumeSh.y;
+      const L1 = 0.68, L2 = 1.24, hyp = Math.hypot(rr, yy) || 1e-3;
+      const D = Math.max(0.58, Math.min(1.89, hyp)), sc = D / hyp, r2 = rr*sc, y2 = yy*sc;
+      const c2 = Math.max(-1, Math.min(1, (r2*r2 + y2*y2 - L1*L1 - L2*L2) / (2*L1*L2)));
+      const th2 = -Math.acos(c2), th1 = Math.atan2(y2, r2) - Math.atan2(L2*Math.sin(th2), L1 + L2*Math.cos(th2));
+      s1t = Math.max(-1.5, Math.min(0.6, th1 - Math.PI/2));
+      s2t = Math.max(-1.9, Math.min(0.4, th2));
+      hxt = Math.max(-0.7, Math.min(0.6, -Math.atan2(yy, rr) + 0.2));
+    } catch(_){} }
+    s1 = u.seg1.rotation.z + (s1t - u.seg1.rotation.z) * 0.12;   // ease toward the IK pose
+    s2 = u.seg2.rotation.z + (s2t - u.seg2.rotation.z) * 0.12;
+    headX = u.head.rotation.x + (hxt - u.head.rotation.x) * 0.12;
+    clawOpen = (u.gripPhase === 'reach') ? 0.7 : 0;
   } else if (u.gripPhase === 'carry') { s1 = u.s1Base + 0.25; s2 = u.s2Base + 0.15; headX = -0.1; clawOpen = 0; }
   u.seg1.rotation.z = s1; u.seg2.rotation.z = s2; u.head.rotation.x = headX;
   for (const c of u.claw) { c.j.rotation.z = c.base.z * (1 - clawOpen*1.5); c.j.rotation.x = c.base.x * (1 - clawOpen*1.5); }
@@ -8719,6 +8746,8 @@ function _makeForgeProps() {
     A.holo={ root, core:hcore, plates, ringA, ringB };
   } catch(_){}
 
+  A.items = G.children.slice();   // the 4 prop groups (reactor, faceplate, gauntlet, holo) -> grabbable on request
+  G.scale.setScalar(1.3);         // ~30% bigger so the fine cyan wireframe reads clearly over bright passthrough
   G.userData.A=A;
   return G;
 }
@@ -8816,7 +8845,10 @@ window.__xrForge = function (show) {
       const pFace = new THREE.Vector3().subVectors(bt, camPos); pFace.y = 0; pFace.normalize();   // +Z ends up facing the user
       props.position.copy(bt);
       props.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), pFace, up));
-      scene.add(props); } catch(_){}
+      scene.add(props);
+      window._forgePropItems = (props.userData.A && props.userData.A.items) || [];   // grabbable only when unlocked
+      if (window._forgePropsMovable === undefined) window._forgePropsMovable = false;
+    } catch(_){}
     _forge = { rack, group, arm, env, props };
     try { window.__xrParticleBurst && window.__xrParticleBurst(rackPos); } catch(_){}
     try { window.speak(_forgeWall ? pick(['Forge online, sir. Racked to your wall.','Workshop bay ready, sir.']) : 'Forge online, sir. Scan the room to pin it to your wall.', 'confident'); } catch(_){}
