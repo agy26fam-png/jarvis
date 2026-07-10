@@ -2622,7 +2622,16 @@ window.__brainKey=function(){try{return localStorage.getItem('jarvisBrainKey')||
             console.warn('brain tunnel unreachable -- circuit open, retrying discovery in 2min');
             setTimeout(()=>{
               fetch('brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
-                if(d&&d.url){BRAIN=String(d.url).replace(/\/$/,'');window.BRAIN=BRAIN;
+                if(d&&d.url){BRAIN=String(d.url).replace(/\/$/,'');window.BRAIN=BRAIN;}
+              }).catch(()=>{});
+            },120000);
+          }
+          throw e;
+        });
+      }
+    }catch(_){}
+    return _f(url,opts);
+  };})();
 // ==== QUEST DIAGNOSTIC REPORTER ==========================================================
 // Buffers lifecycle marks + main-thread stalls (>=100ms longtasks) + JS errors, and posts
 // them to the brain's /diag every 4s. Read back with GET /diag_recent -- turns "it froze"
@@ -2684,16 +2693,7 @@ window.__brainKey=function(){try{return localStorage.getItem('jarvisBrainKey')||
       },1500);
     }
   }catch(_){}
-})();}
-              }).catch(()=>{});
-            },120000);
-          }
-          throw e;
-        });
-      }
-    }catch(_){}
-    return _f(url,opts);
-  };})();
+})();
 // TUNNEL AUTO-DISCOVERY: hosted builds (Quest/phone) learn the brain's CURRENT tunnel URL from
 // /brain.json, which serve_tunnel.bat republishes on every tunnel start -- so the headset never
 // needs a URL typed into it. An explicit ?brain= or saved override always wins.
@@ -5763,7 +5763,7 @@ function _slapUpdate() {
   const now = performance.now();
   for (let h = 0; h < 2; h++) {
     const hand = _xrHands[h]; const gp = hand ? _handGrabPoint(hand) : null;
-    if (!gp) { _slapT[h] = 0; continue; }
+    if (!gp) { _slapT[h] = 0; _slapVel[h].set(0,0,0); continue; }
     const dt = _slapT[h] ? Math.max(0.004, (now - _slapT[h])/1000) : 0.016;
     if (_slapT[h]) _slapVel[h].subVectors(gp, _slapPrev[h]).multiplyScalar(1/dt);
     _slapPrev[h].copy(gp); _slapT[h] = now;
@@ -5841,7 +5841,8 @@ function _updateXRGrab() {
       const hand = _xrHands[desired === 'left' ? 0 : 1];
       // REACH-AND-GRAB first (hand physically at the object), else fall back to point-and-grab (ray aim)
       const rt = _directGrabTarget(hand) || hand.userData._rayTarget
-        || (hand.userData._rayTargetLastT && performance.now() - hand.userData._rayTargetLastT < 350 ? hand.userData._rayTargetLast : null);
+        || (hand.userData._rayTargetLastT && performance.now() - hand.userData._rayTargetLastT < 350
+            && hand.userData._rayTargetLast && hand.userData._rayTargetLast.obj && hand.userData._rayTargetLast.obj.parent ? hand.userData._rayTargetLast : null);
       if (rt) {
         if (rt.kind === 'panel') {   // PINCH = grab + move the whole panel; touch (POKE) selects its buttons/sliders
           const pnl = rt.obj;
@@ -8630,12 +8631,13 @@ function _dumeNavStep(u) {
     // still on the bench), the claw closes and SEIZES it, then we snap the model to the claw grip point -- else
     // it stays welded wherever it was (the "connected to a random part of the body" bug).
     if (!nav.carried && typeof root !== 'undefined' && meshData.length) { root.getWorldPosition(_dumeTmp); (u.gripTarget || (u.gripTarget = new THREE.Vector3())).copy(_dumeTmp); }
-    u.gripPhase = 'reach';
-    if (nav.arriveT < 1.1) return true;   // _updateForge drives the bend + open claw during this window
-    u.gripPhase = 'grip';
+    if (nav.arriveT < 1.1) { u.gripPhase = 'reach'; return true; }   // bend DOWN, claw OPEN (IK reach window)
+    // SEIZE: close the claw on the target while the boom is still bent down, then HOLD that grip pose so it's visible
     if (!nav.carried && typeof root !== 'undefined' && meshData.length) {
       try { u.head.attach(root); root.position.set(0, 0.11, 0.05); root.userData._vel = null; nav.carried = root; } catch(_){}   // HELD in the claw
     }
+    u.gripPhase = 'grip';
+    if (nav.arriveT < 1.5) return true;   // ~0.4s of closed-claw-down before lifting -> the grab reads as a real grab
     nav.state = 'return'; nav.arriveT = 0; u.gripPhase = 'carry'; try { window.speak && window.speak('Got it, sir.', 'normal'); } catch(_){}
     return true;
   }
