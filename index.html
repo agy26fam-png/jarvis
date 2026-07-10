@@ -6041,6 +6041,8 @@ const _APP_TILES = [
 ];
 // UPDATE LOG -- newest first. [tag, title, one-liner]. Shown as a glowing timeline in the 'changelog' panel.
 const _CHANGELOG = [
+  ['NEW', 'Forge Relics',         'Arc reactor, MK helmet, repulsor gauntlet + holo schematic on the bench'],
+  ['NEW', 'Dome HUD',             'Visor now curves top+bottom to fit the Quest display'],
   ['NOW', 'DUM-E Fetch',          'Say "dum-e bring this to me" — he rolls over and delivers it'],
   ['NOW', 'Slap Physics',         'Smack a model or panel and it flies off'],
   ['NOW', 'DUM-E Arm',            'Cyan-wireframe helper — "dum-e next / point / fire extinguisher"'],
@@ -8514,12 +8516,182 @@ function _updateForge() {
   u.seg1.rotation.z = s1; u.seg2.rotation.z = s2; u.head.rotation.x = headX;
   for (const c of u.claw) { c.j.rotation.z = c.base.z * (1 - clawOpen*1.5); c.j.rotation.x = c.base.x * (1 - clawOpen*1.5); }
   u.eye.material.opacity = 0.7 + 0.3*Math.sin(u.t*3);   // camera-eye glow
+  if (_forge.props) { try { _updateForgeProps(_forge.props); } catch(_){} }
+}
+// ============================================================================
+// FORGE PREMIUM PROPS -- a workbench tableau of iconic Stark relics, all in the cyan-wireframe idiom
+// (amber 0xffb648 = the one hot accent, chrome 0xdff4ff = machined mounts, blue 0x2a9fff = cables).
+// Researched against the real props/replicas. Left->right on the bench top: the MK-III FACEPLATE in a
+// fabrication cradle, the palladium ARC REACTOR (hero, dead centre, tilted at the user), the REPULSOR
+// GAUNTLET test-rig; the exploded HOLO SCHEMATIC floats above centre-rear. Amber points are phase-offset
+// so they read as one warm constellation, not an arcade. Each prop builds in its own try/catch so a
+// single failure can't take down the forge. Idle-animated by _updateForgeProps() from _updateForge().
+// ============================================================================
+function _makeForgeProps() {
+  const CY=0x7fefff, AMBER=0xffb648, CH=0xdff4ff, BLUE=0x2a9fff;
+  const addMat=(c,o)=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o==null?0.8:o,blending:THREE.AdditiveBlending,depthWrite:false});
+  const ring=(rMaj,tube,c,o,rad,tub)=>new THREE.Mesh(new THREE.TorusGeometry(rMaj,tube,rad||8,tub||24), addMat(c,o));
+  const bulb=(r,c,o)=>new THREE.Mesh(new THREE.SphereGeometry(r,12,10), addMat(c,o==null?0.9:o));
+  const disc2=(r,c,o)=>new THREE.Mesh(new THREE.CircleGeometry(r,24), addMat(c,o));
+  const wireGeo=(geo,c,o)=>{ const g=new THREE.Group();
+    g.add(new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0x0a1520,transparent:true,opacity:0.22,depthWrite:false})));
+    g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:c||CY,transparent:true,opacity:o==null?0.85:o,blending:THREE.AdditiveBlending,depthWrite:false}))); return g; };
+  const G=new THREE.Group(); const A={ t:0 };
+
+  // ---------- 1) ARC REACTOR (centre hero, "proof he has a heart") ----------
+  try {
+    const reactor=new THREE.Group(); reactor.position.set(0,0.22,0.15); G.add(reactor);
+    const disc=new THREE.Group(); disc.rotation.x=-0.32; reactor.add(disc);     // tilt back toward the user
+    const spin=new THREE.Group(); disc.add(spin);                                // turntable (coils rotate in-plane)
+    const housing=_wireCyl(0.105,0.105,0.05,24,0.5); housing.rotation.x=Math.PI/2; spin.add(housing);
+    const rear=_wireCyl(0.105,0.088,0.022,24,0.45); rear.rotation.x=Math.PI/2; rear.position.z=-0.036; spin.add(rear);
+    const bezel=ring(0.10,0.010,CY,0.7,8,40); bezel.position.z=0.026; spin.add(bezel);
+    const caps=[];
+    for(let i=0;i<10;i++){ const a=i*Math.PI/5, R=0.072;
+      const bob=_wireCyl(0.015,0.015,0.03,6,0.55); bob.position.set(Math.cos(a)*R,Math.sin(a)*R,0.006); bob.rotation.z=a-Math.PI/2; spin.add(bob);
+      const cap=bulb(0.006,AMBER,0.9); cap.position.set(Math.cos(a)*0.088,Math.sin(a)*0.088,0.012); spin.add(cap); caps.push(cap); }
+    const innerR=ring(0.052,0.008,CY,0.7,8,32); innerR.position.z=0.03; spin.add(innerR);
+    const tri=_wireCyl(0.020,0.020,0.006,3,0.85,AMBER); tri.rotation.x=Math.PI/2; tri.position.z=0.033; spin.add(tri);
+    const glow=disc2(0.05,AMBER,0.15); glow.position.z=0.028; spin.add(glow);
+    const heart=bulb(0.013,AMBER,0.9); heart.position.z=0.035; spin.add(heart);
+    const coreRing=ring(0.030,0.006,AMBER,0.9,8,32); coreRing.position.z=0.032; disc.add(coreRing);   // counter-shimmer
+    // stand
+    const rbase=_wireCyl(0.05,0.055,0.012,24,0.5); rbase.position.y=-0.205; reactor.add(rbase);
+    const rrim=ring(0.05,0.006,CH,0.7,6,28); rrim.rotation.x=Math.PI/2; rrim.position.y=-0.199; reactor.add(rrim);
+    const rpost=_wireCyl(0.009,0.014,0.15,10,0.6,CH); rpost.position.y=-0.12; reactor.add(rpost);
+    A.reactor={ spin, coreRing, glow, heart, caps };
+  } catch(_){}
+
+  // ---------- 2) MARK III FACEPLATE in a fabrication cradle (LEFT) ----------
+  try {
+    const rig=new THREE.Group(); rig.position.set(-0.42,0,0.10); G.add(rig);
+    const cbase=_wireLimb(0.26,0.03,0.22,0.5); cbase.position.y=0.015; rig.add(cbase);
+    for(const sx of [-1,1]){ const up=_wireCyl(0.012,0.012,0.16,8,0.6,CH); up.position.set(sx*0.09,0.10,-0.06); rig.add(up); }
+    const yoke=ring(0.09,0.012,CH,0.8,8,18); yoke.rotation.x=Math.PI/2; yoke.position.set(0,0.20,-0.02); rig.add(yoke);
+    const led=bulb(0.010,AMBER,0.9); led.position.set(-0.11,0.03,0.10); rig.add(led);
+    const scanRing=ring(0.15,0.006,CY,0.65,6,32); scanRing.rotation.x=0.35; scanRing.position.set(0,0.34,0); rig.add(scanRing);
+    // helmet
+    const helm=new THREE.Group(); helm.position.set(0,0.34,0); rig.add(helm);
+    const dome=wireGeo(new THREE.SphereGeometry(0.12,12,8),CY,0.7); dome.scale.set(1.0,1.15,1.1); helm.add(dome);
+    const neck=ring(0.085,0.014,CY,0.6,8,18); neck.rotation.x=Math.PI/2; neck.position.y=-0.13; helm.add(neck);
+    // hinged faceplate (pivots at the forehead)
+    const face=new THREE.Group(); face.position.set(0,0.10,0.075); helm.add(face);
+    const put=(m,x,y,z,rz,ry)=>{ m.position.set(x,y,z); if(rz)m.rotation.z=rz; if(ry)m.rotation.y=ry; face.add(m); return m; };
+    put(_wireLimb(0.085,0.02,0.03,0.9),-0.042,-0.03,0.05,0.18);
+    put(_wireLimb(0.085,0.02,0.03,0.9), 0.042,-0.03,0.05,-0.18);
+    put(wireGeo(new THREE.BoxGeometry(0.016,0.05,0.03),CH,0.8),0,-0.055,0.055);       // nose bridge (chrome)
+    put(_wireLimb(0.075,0.10,0.02,0.85),-0.05,-0.12,0.03,0.0,0.34);                    // cheek L
+    put(_wireLimb(0.075,0.10,0.02,0.85), 0.05,-0.12,0.03,0.0,-0.34);                   // cheek R
+    put(_wireLimb(0.07,0.012,0.02,0.75),0,-0.175,0.03);                                // mouth vent
+    put(wireGeo(new THREE.ConeGeometry(0.05,0.065,4),CY,0.9),0,-0.225,0.02,Math.PI,0.785); // chin (4-sided)
+    const eyes=[];
+    for(const sx of [-1,1]){ const pm=addMat(AMBER,0.85);
+      const e=new THREE.Group(); e.add(new THREE.Mesh(new THREE.PlaneGeometry(0.07,0.022),pm));
+      e.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.07,0.022)),new THREE.LineBasicMaterial({color:AMBER,transparent:true,opacity:0.95,blending:THREE.AdditiveBlending,depthWrite:false})));
+      e.position.set(sx*0.045,-0.062,0.058); e.rotation.z=sx*0.26; e.rotation.y=-sx*0.2; face.add(e); eyes.push(pm); }
+    A.helm={ eyes, scanRing, face };
+  } catch(_){}
+
+  // ---------- 3) REPULSOR GAUNTLET test-rig (RIGHT) ----------
+  try {
+    const gaunt=new THREE.Group(); gaunt.position.set(0.40,0,0.10); G.add(gaunt);
+    const gbase=_wireLimb(0.16,0.02,0.14,0.5); gbase.position.y=0.01; gaunt.add(gbase);
+    const gcol=_wireCyl(0.02,0.026,0.24,10,0.6); gcol.position.y=0.14; gaunt.add(gcol);
+    const pin=_wireCyl(0.006,0.006,0.10,8,0.7,CH); pin.rotation.x=Math.PI/2; pin.position.y=0.26; gaunt.add(pin);
+    const pivot=new THREE.Group(); pivot.position.set(0,0.26,0); gaunt.add(pivot);   // recoils on fire
+    // forearm bracer laid along +X (palm fires outward past the bench edge)
+    const core=_wireCyl(0.052,0.062,0.24,12,0.5); core.rotation.z=Math.PI/2; core.position.x=-0.02; pivot.add(core);
+    for(let i=0;i<3;i++){ const pl=_wireCyl(0.058,0.066,0.05,14,0.45); pl.rotation.z=Math.PI/2; pl.position.x=-0.08+i*0.06; pivot.add(pl); }
+    const spine=wireGeo(new THREE.BoxGeometry(0.22,0.018,0.018),CH,0.7); spine.position.set(-0.02,0.05,0); pivot.add(spine);
+    const jbox=wireGeo(new THREE.BoxGeometry(0.05,0.03,0.038),CY,0.7); jbox.position.set(-0.08,0.05,0.0); pivot.add(jbox);
+    const pip=bulb(0.006,AMBER,0.85); pip.position.set(-0.08,0.05,0.022); pivot.add(pip);
+    const wband=ring(0.05,0.006,CY,0.7,6,20); wband.rotation.y=Math.PI/2; wband.position.x=0.10; pivot.add(wband);
+    // hand
+    const backplate=wireGeo(new THREE.BoxGeometry(0.028,0.09,0.10),CY,0.7); backplate.position.x=0.16; pivot.add(backplate);
+    for(let f=0;f<4;f++){ const fy=(f-1.5)*0.026; for(let s=0;s<2;s++){ const seg=_wireLimb(0.03,0.014,0.012,0.6); seg.position.set(0.20+s*0.03,fy,0.02); pivot.add(seg); } }
+    const thumb=_wireLimb(0.026,0.014,0.016,0.6); thumb.position.set(0.19,-0.05,0.03); pivot.add(thumb);
+    // palm repulsor (amber hero) facing +X
+    const palmGrp=new THREE.Group(); palmGrp.position.set(0.18,0,0.045); palmGrp.rotation.y=Math.PI/2; pivot.add(palmGrp);
+    palmGrp.add(ring(0.028,0.006,CY,0.8,8,20));
+    palmGrp.add(ring(0.018,0.004,CY,0.7,8,18));
+    const gcore=bulb(0.010,AMBER,0.9); palmGrp.add(gcore);
+    const muzzle=new THREE.Mesh(new THREE.ConeGeometry(0.028,0.02,16,1,true), addMat(CY,0.3)); muzzle.rotation.x=Math.PI/2; muzzle.position.z=0.012; palmGrp.add(muzzle);
+    // fire beam (hidden at rest) from palm toward target, along +X
+    const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.012,0.16,8), addMat(AMBER,0)); beam.rotation.z=Math.PI/2; beam.position.set(0.27,0,0.045); beam.visible=false; pivot.add(beam);
+    // target / scorch panel (static, in front of the palm)
+    const tstand=_wireCyl(0.012,0.012,0.10,8,0.5); tstand.position.set(0.30,0.05,0.045); gaunt.add(tstand);
+    const tpanel=_wireLimb(0.16,0.13,0.012,0.4); tpanel.position.set(0.30,0.13,0.045); tpanel.rotation.y=-Math.PI/2; gaunt.add(tpanel);
+    const scorch=ring(0.045,0.004,AMBER,0.4,8,24); scorch.rotation.y=Math.PI/2; scorch.position.set(0.294,0.13,0.045); gaunt.add(scorch);
+    A.gaunt={ pivot, core:gcore, beam, scorch };
+  } catch(_){}
+
+  // ---------- 4) HOLO SCHEMATIC -- exploded Mark suit bust (floats above centre-rear) ----------
+  try {
+    const holo=new THREE.Group(); holo.position.set(0,0.44,-0.14); G.add(holo);
+    const root=new THREE.Group(); holo.add(root);
+    const plates=[];
+    const plate=(mesh,x,y,z)=>{ const g=new THREE.Group(); g.add(mesh); g.position.set(x,y,z); root.add(g); plates.push({g,base:new THREE.Vector3(x,y,z)}); return g; };
+    // arc-reactor heart (amber anchor)
+    root.add(ring(0.055,0.010,CY,0.8,8,24));
+    const hcore=bulb(0.026,AMBER,0.85); root.add(hcore);
+    for(let i=0;i<8;i++){ const a=i*Math.PI/4; const sp=_wireLimb(0.006,0.028,0.006,0.8); sp.position.set(Math.cos(a)*0.03,Math.sin(a)*0.03,0); sp.rotation.z=a; root.add(sp); }
+    // endoskeleton (static)
+    const spine=_wireCyl(0.018,0.018,0.34,8,0.7,CH); root.add(spine);
+    for(const ry of [0.08,-0.04,-0.16]){ const rib=ring(0.10,0.005,CY,0.6,6,20); rib.scale.x=1.35; rib.position.y=ry; root.add(rib); }
+    // exploded plates
+    plate(_wireLimb(0.24,0.22,0.05,0.6),0,0.05,0.13);
+    plate(_wireLimb(0.18,0.14,0.045,0.6),0,-0.16,0.11);
+    plate(_wireLimb(0.24,0.30,0.045,0.55),0,0.02,-0.13);
+    for(const sx of [-1,1]){ plate(_wireCyl(0.035,0.085,0.085,12,0.6),sx*0.22,0.14,0); plate(_wireLimb(0.10,0.09,0.045,0.6),sx*0.20,0.04,0.02); }
+    // helmet (explodes up, faceplate off the front)
+    const skull=wireGeo(new THREE.SphereGeometry(0.075,10,8),CY,0.6); skull.scale.set(1,1.1,1.2); plate(skull,0,0.42,0.06);
+    plate(_wireLimb(0.12,0.14,0.045,0.6),0,0.40,0.16);
+    for(const sx of [-1,1]){ const e=_wireLimb(0.03,0.008,0.006,0.95); e.position.set(sx*0.03,0.40,0.185); root.add(e); }
+    // HUD reticle rings
+    const ringA=ring(0.30,0.004,CY,0.5,6,48); ringA.rotation.x=Math.PI/2; root.add(ringA);
+    const ringB=ring(0.30,0.004,CY,0.4,6,48); ringB.rotation.x=Math.PI/2*0.4; root.add(ringB);
+    // projector puck + light cone rising from the bench
+    const puck=_wireCyl(0.06,0.075,0.02,20,0.5); puck.position.y=-0.44; holo.add(puck);
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(0.10,0.40,20,1,true), addMat(CY,0.10)); cone.position.y=-0.24; holo.add(cone);
+    A.holo={ root, core:hcore, plates, ringA, ringB };
+  } catch(_){}
+
+  G.userData.A=A;
+  return G;
+}
+function _updateForgeProps(pg){
+  const A=pg&&pg.userData&&pg.userData.A; if(!A) return;
+  A.t+=0.016; const t=A.t, dt=0.016;
+  if(A.reactor){ const R=A.reactor; R.spin.rotation.z+=0.14*dt; R.coreRing.rotation.z-=0.22*dt;
+    const hb=0.5+0.5*Math.sin(t*2.4);
+    R.heart.scale.setScalar(1+0.14*Math.sin(t*2.4)); R.heart.material.opacity=0.62+0.34*hb;
+    R.glow.material.opacity=0.10+0.15*hb; R.glow.scale.setScalar(1+0.08*hb);
+    for(let i=0;i<R.caps.length;i++) R.caps[i].material.opacity=0.4+0.6*Math.max(0,Math.sin(t*3-i*0.63)); }
+  if(A.helm){ const H=A.helm; const br=0.55+0.45*(0.5+0.5*Math.sin(t*2.5)); const flare=(t%10)<0.15?0.4:0;
+    for(const e of H.eyes) e.material.opacity=Math.min(1,br+flare);
+    H.scanRing.rotation.y+=0.3*dt;
+    const ph=t%14; let open=0; if(ph<1.2) open=ph/1.2; else if(ph<4.2) open=1; else if(ph<5.2) open=1-(ph-4.2)/1.0;
+    H.face.rotation.x=-1.4*open; }
+  if(A.gaunt){ const Gt=A.gaunt; const ph=t%7;
+    let coreOp=0.5+0.5*Math.sin(t*2.5), coreS=1, recoil=0, beamOp=0, scorch=0.4;
+    if(ph<0.8){ const k=ph/0.8; coreOp=0.5+0.5*k; coreS=1+0.4*k; }
+    else if(ph<0.92){ coreOp=1; coreS=2.5; beamOp=0.9; scorch=1; recoil=(ph-0.8)/0.12; }
+    else if(ph<1.6){ const k=(ph-0.92)/0.68; recoil=1-k; coreS=2.5-1.5*k; beamOp=0.9*(1-k); scorch=1-0.6*k; }
+    Gt.core.material.opacity=coreOp; Gt.core.scale.setScalar(coreS);
+    Gt.pivot.rotation.z=-0.24*recoil;
+    if(Gt.beam){ Gt.beam.material.opacity=beamOp; Gt.beam.visible=beamOp>0.02; }
+    if(Gt.scorch) Gt.scorch.material.opacity=scorch; }
+  if(A.holo){ const Ho=A.holo; Ho.root.rotation.y+=0.15*dt;
+    const b=1+0.04*Math.sin(t*0.8);
+    for(const p of Ho.plates) p.g.position.copy(p.base).multiplyScalar(b);
+    Ho.core.scale.setScalar(1+0.12*Math.sin(t*1.2)); Ho.core.material.opacity=0.7+0.3*(0.5+0.5*Math.sin(t*1.2));
+    Ho.ringA.rotation.z+=0.4*dt; Ho.ringB.rotation.z-=0.25*dt; }
 }
 window.__xrForge = function (show) {
   if (show === false) {
     if (_forge) {
       if (_forge.rack) { const i = _panels.indexOf(_forge.rack); if (i>=0) _panels.splice(i,1); scene.remove(_forge.rack); _forge.rack.traverse(o=>{ o.geometry?.dispose?.(); o.material?.map?.dispose?.(); o.material?.dispose?.(); }); }
-      for (const g of [_forge.group, _forge.arm, _forge.env]) if (g) { scene.remove(g); g.traverse(o=>{ o.geometry?.dispose?.(); o.material?.map?.dispose?.(); o.material?.dispose?.(); }); }
+      for (const g of [_forge.group, _forge.arm, _forge.env, _forge.props]) if (g) { scene.remove(g); g.traverse(o=>{ o.geometry?.dispose?.(); o.material?.map?.dispose?.(); o.material?.dispose?.(); }); }
       _forge = null;
     }
     return false;
@@ -8567,7 +8739,16 @@ window.__xrForge = function (show) {
     let env = null;
     try { const floorY = arm.position.y, benchCtr = camPos.clone().addScaledVector(bfwd, 0.95);
       env = _makeForgeEnvironment(floorY, benchCtr, bfwd, bright); scene.add(env); } catch(_){}
-    _forge = { rack, group, arm, env };
+    // PREMIUM PROP TABLEAU: iconic Stark relics on the bench top, facing the user (arc reactor centre,
+    // faceplate cradle left, repulsor gauntlet right, exploded holo schematic floating above).
+    let props = null;
+    try { props = _makeForgeProps();
+      const bt = _workbench ? _workbench.position.clone() : camPos.clone().addScaledVector(bfwd, 0.7);
+      const pFace = new THREE.Vector3().subVectors(bt, camPos); pFace.y = 0; pFace.normalize();   // +Z ends up facing the user
+      props.position.copy(bt);
+      props.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), pFace, up));
+      scene.add(props); } catch(_){}
+    _forge = { rack, group, arm, env, props };
     try { window.__xrParticleBurst && window.__xrParticleBurst(rackPos); } catch(_){}
     try { window.speak(_forgeWall ? pick(['Forge online, sir. Racked to your wall.','Workshop bay ready, sir.']) : 'Forge online, sir. Scan the room to pin it to your wall.', 'confident'); } catch(_){}
     return true;
