@@ -3732,13 +3732,33 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
   if(/\b(forge(?: bay)?|open (?:the )?forge|the forge|workshop bay|set up (?:the )?workshop)\b/.test(t)){
     if(window._xrPresenting&&window.__xrForge&&window.__xrForge(true)){}
     else speak("Step into immersive mode first, sir.","normal");return;}
+  // HALL OF ARMOR -- "show me the hall of armor" / "close the armory"
+  if (/\b(hall of armou?r|armou?ry|armor gallery|armour gallery|suit gallery|show me (?:the )?(?:armou?rs?|suits))\b/.test(t)) {
+    if (window._xrPresenting && window.__xrHallOfArmor) window.__xrHallOfArmor(true);
+    else speak("Step into immersive mode first, sir.","normal"); return; }
+  if (/\b(close|dismiss|hide|put away|power down) (?:the )?(?:hall(?: of armou?r)?|armou?ry|armor gallery)\b/.test(t)) {
+    if (window.__xrHallOfArmor) window.__xrHallOfArmor(false); return; }
   // DUM-E the helper arm -- "dum-e, <do something>"
   { const dm = t.match(/\b(?:dum-?e|dummy)\b[,\s]*(.*)$/);
     if (dm) { const rest = dm[1] || '';
       if (/\bbring|fetch|get (?:this|it|that)|come (?:get|grab)|hand (?:it|this|me|that)|give me\b/.test(rest)) {   // "bring this to me"
         if (!(window._xrPresenting && window.__xrDumeFetch && window.__xrDumeFetch())) speak("Step into the forge first, sir.","normal"); return; }
+      const _dz = (fn) => { if (!(window._xrPresenting && fn && fn())) speak("Step into the forge first, sir.","normal"); };
+      // SPATIAL CONTROL -- point-and-send / recall / follow / wait / dock
+      if (/\b(go (?:over )?there|over there|go that way|go to that spot|move over there|head over|park (?:it )?there)\b/.test(rest)) { _dz(window.__xrDumeGo); return; }
+      if (/\b(follow me|follow along|come with me|stay with me|on me|heel)\b/.test(rest)) { _dz(() => window.__xrDumeFollow && window.__xrDumeFollow(true)); return; }
+      if (/\b(stop following|quit following|at ease|as you were)\b/.test(rest)) { _dz(() => window.__xrDumeFollow && window.__xrDumeFollow(false)); return; }
+      if (/\b(come (?:back|here)|come to me|return to me|back to me|get over here)\b/.test(rest)) { _dz(window.__xrDumeCome); return; }
+      if (/\b(stay|wait|hold (?:still|position|it)|stay (?:there|here|put)|freeze|don'?t move)\b/.test(rest)) { _dz(window.__xrDumeStay); return; }
+      if (/\b(go home|return home|back to your (?:spot|corner|post|station)|dock|go to your corner)\b/.test(rest)) { _dz(window.__xrDumeHome); return; }
+      if (/\b(power down|shut down|shutdown|go to sleep|power off|deactivate|stand down|sleep now)\b/.test(rest)) { _dz(() => window.__xrDume && window.__xrDume('powerdown')); return; }
+      if (/\b(power up|wake up|power on|activate|boot up|rise and shine)\b/.test(rest)) { _dz(() => window.__xrDume && window.__xrDume('powerup')); return; }
       const cmd = /\bnext|another|cycle|swap\b/.test(rest) ? 'next'
         : /\bclear|clean|tidy|put away|dismiss\b/.test(rest) ? 'clear'
+        : /\b(nod|say yes|agree|good (?:boy|job|work)|well done|nice work)\b/.test(rest) ? 'nod'
+        : /\b(shake your head|say no|disagree|bad (?:boy|dum-?e))\b/.test(rest) ? 'shake'
+        : /\b(dance|celebrate|spin|do a spin|party)\b/.test(rest) ? 'dance'
+        : /\b(tilt|curious|look confused|what is it)\b/.test(rest) ? 'tilt'
         : /\bpoint|look|show me\b/.test(rest) ? 'point'
         : /\bfire|extinguish|put out|spray|flame\b/.test(rest) ? 'spray'
         : 'wave';   // bare "dum-e" or a greeting -> wave hello
@@ -6021,6 +6041,7 @@ const _WRIST_APPS = [
   { icon:'⊕', label:'WAR TBL', kind:'cmd',   target:'wartable' },
   { icon:'❖', label:'WAR ROOM',kind:'cmd',   target:'warroom' },
   { icon:'⌂', label:'FORGE',   kind:'cmd',   target:'forge' },
+  { icon:'⬡', label:'ARMORY',  kind:'cmd',   target:'hall' },
 ];
 const _WRIST_PER = 6, _WRIST_COLS = [76, 190, 304], _WRIST_ROWS = [102, 180], _WRIST_TILE = 60;
 const _WRIST_SLOTS = []; for (const _wy of _WRIST_ROWS) for (const _wx of _WRIST_COLS) _WRIST_SLOTS.push({ x: _wx, y: _wy });
@@ -6149,6 +6170,7 @@ function _wristFireApp(app, worldPos) {
     else if (app.target==='wartable') window.__xrWarTable && window.__xrWarTable(!_warTable);   // toggle
     else if (app.target==='warroom') window.__xrWarRoom && window.__xrWarRoom();
     else if (app.target==='forge') window.__xrForge && window.__xrForge(!_forge);   // toggle the forge bay
+    else if (app.target==='hall') window.__xrHallOfArmor && window.__xrHallOfArmor(!(_hall && _hall.visible));   // toggle the Hall of Armor
   } else { _spawnPanel(app.target, worldPos); }
 }
 // Poke a tile with the right index tip (NEAREST tile wins -> wonky tracking can't cross-fire). A
@@ -6843,6 +6865,7 @@ function _appsSelect(panel, uv, hand) {
           else if (t.target === 'wartable') window.__xrWarTable && window.__xrWarTable(!_warTable);   // toggle
           else if (t.target === 'warroom') window.__xrWarRoom && window.__xrWarRoom();
           else if (t.target === 'forge') window.__xrForge && window.__xrForge(!_forge);   // toggle the forge bay
+          else if (t.target === 'hall') window.__xrHallOfArmor && window.__xrHallOfArmor(!(_hall && _hall.visible));   // toggle the Hall of Armor
         }
         else if (t.kind === 'web') {                          // honest: exit immersive, then open in the 2D browser
           try { window.speak && window.speak('Opening ' + t.label + ', sir. Leaving immersive mode.', 'normal'); } catch(_){}
@@ -8596,6 +8619,12 @@ window.__xrDume = function (cmd) {   // DUM-E's brain: perform a real action + t
     else if (cmd === 'wave')  { window.speak && window.speak(pick(['Hello, sir.','At your service, sir.']), 'normal'); }
     else if (cmd === 'point') { window.__xrPointAndAsk && window.__xrPointAndAsk(); }
     else if (cmd === 'spray') { window.speak && window.speak('Fire suppressed, sir.', 'confident'); }   // the canonical DUM-E gag
+    else if (cmd === 'nod')   { window.speak && window.speak(pick(['Yes, sir.','Understood, sir.','Of course, sir.']), 'normal'); }
+    else if (cmd === 'shake') { window.speak && window.speak(pick(['No, sir.','I would not advise it, sir.']), 'normal'); }
+    else if (cmd === 'tilt')  { window.speak && window.speak(pick(['Sir?','Hm?']), 'normal'); }
+    else if (cmd === 'dance') { window.speak && window.speak(pick(['For you, sir.','With pleasure, sir.']), 'confident'); }
+    else if (cmd === 'powerdown') { u.powered = false; u.action = null; window.speak && window.speak('Powering down, sir.', 'normal'); }
+    else if (cmd === 'powerup')   { u.powered = true;  u.action = null; window.speak && window.speak('Back online, sir.', 'confident'); }
     window.tone && window.tone(880, 0.06, 'sine', 0.05);
   } catch(_){}
   return true;
@@ -8610,6 +8639,12 @@ function _dumeNavStep(u) {
     if (nav.wanderT > 20 && Math.random() < 0.01) { nav.wanderT = 0; const h = nav.home || arm.position;
       nav.tx = h.x + (Math.random()-0.5)*1.3; nav.tz = h.z + (Math.random()-0.5)*1.3; nav.state = 'wander'; }
     return false;
+  }
+  if (nav.state === 'stay') return false;   // COMMANDED WAIT: hold this spot, no autonomy roam, until recalled
+  if (nav.state === 'follow' || nav.state === 'come') {   // track YOU (follow = persistent; come = one-shot recall)
+    const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
+    _dumeFwd.set(0,0,-1).applyQuaternion(cam.quaternion); _dumeFwd.y = 0; _dumeFwd.normalize();
+    nav.tx = _dumeCam.x + _dumeFwd.x*0.9; nav.tz = _dumeCam.z + _dumeFwd.z*0.9;   // park ~0.9m in front of you
   }
   if (nav.state === 'return') {   // "bring it to ME" -> follows your CURRENT position
     const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
@@ -8626,6 +8661,9 @@ function _dumeNavStep(u) {
   }
   nav.arriveT = (nav.arriveT || 0) + 0.016;   // ARRIVED
   if (nav.state === 'wander') { nav.state = 'idle'; return false; }
+  if (nav.state === 'follow') return false;                            // reached the standoff -> hold; re-chases as you move
+  if (nav.state === 'goPoint') { nav.state = 'stay'; return false; }   // arrived at the pointed spot -> WAIT there
+  if (nav.state === 'come') { nav.state = 'idle'; nav.wanderT = 0; return false; }   // reached you -> resume normal idle
   if (nav.state === 'goModel') {
     // REACH + GRIP: the boom bends via 2-link IK to the model's ACTUAL position (captured each frame while it's
     // still on the bench), the claw closes and SEIZES it, then we snap the model to the claw grip point -- else
@@ -8663,6 +8701,144 @@ window.__xrDumeFetch = function () {   // "Dum-E, bring this to me" -> roll to t
   try { window.speak && window.speak(pick(['On it, sir.','Right away, sir.','Fetching, sir.']), 'confident'); window.tone && window.tone(900, 0.06, 'sine', 0.05); } catch(_){}
   return true;
 };
+// ---- DUM-E SPATIAL COMMANDS: point-and-send, recall, follow, stay, dock -------------------------
+let _dumeMark = null;   // the glowing floor ring dropped where you send him ("go over there")
+function _makeDumeMark() {
+  const g = new THREE.Group();
+  const ring = (r,c,o) => { const m = new THREE.Mesh(new THREE.TorusGeometry(r,0.012,8,36),
+    new THREE.MeshBasicMaterial({ color:c, transparent:true, opacity:o, blending:THREE.AdditiveBlending, depthWrite:false }));
+    m.rotation.x = Math.PI/2; return m; };
+  g.add(ring(0.24, 0x7fefff, 0.85)); g.add(ring(0.14, 0xffb648, 0.7));
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,0.5,6),
+    new THREE.MeshBasicMaterial({ color:0x7fefff, transparent:true, opacity:0.30, blending:THREE.AdditiveBlending, depthWrite:false }));
+  beam.position.y = 0.25; g.add(beam);
+  g.userData = { _t:0 }; return g;
+}
+function _dumeFloorRay() {   // raycast the pointing hand (R then L, else head gaze) onto the floor plane
+  const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
+  const fy = (typeof _forgeFloorY === 'function' ? _forgeFloorY(_dumeCam) : _dumeCam.y - 1.55);
+  for (const i of [1, 0]) { const h = _xrHands[i]; if (!h) continue; const r = _handRay(h, i); if (!r) continue;
+    if (r.dir.y < -0.03) { const tHit = (fy - r.origin.y) / r.dir.y;
+      if (tHit > 0.2 && tHit < 8) return { x: r.origin.x + r.dir.x*tHit, z: r.origin.z + r.dir.z*tHit, y: fy }; } }
+  _dumeFwd.set(0,0,-1).applyQuaternion(cam.quaternion); _dumeFwd.y = 0; _dumeFwd.normalize();   // fallback: 2m ahead on the floor
+  return { x: _dumeCam.x + _dumeFwd.x*2.0, z: _dumeCam.z + _dumeFwd.z*2.0, y: fy };
+}
+function _dumeReady(sayIt) {   // guard shared by every spatial command
+  if (!_forge || !_forge.arm) { if (sayIt) try { window.speak && window.speak('The forge is offline, sir.', 'normal'); } catch(_){} return null; }
+  const u = _forge.arm.userData; if (!u.nav.home) u.nav.home = _forge.arm.position.clone();
+  u.powered = true;   // any order wakes him
+  return u;
+}
+window.__xrDumeGo = function () {   // "dum-e, go over there" -> roll to where you point + WAIT there
+  const u = _dumeReady(true); if (!u) return false; const p = _dumeFloorRay(), nav = u.nav;
+  nav.tx = p.x; nav.tz = p.z; nav.state = 'goPoint'; nav.arriveT = 0; nav.marked = true;
+  if (!_dumeMark) { _dumeMark = _makeDumeMark(); scene.add(_dumeMark); }
+  _dumeMark.position.set(p.x, p.y + 0.02, p.z); _dumeMark.visible = true;
+  try { window.speak && window.speak(pick(['On my way, sir.','Heading there, sir.','Right over, sir.']), 'confident'); window.tone && window.tone(760,0.07,'sine',0.05); } catch(_){}
+  return true;
+};
+window.__xrDumeCome = function () {   // "come back / come here" -> roll to you, then resume idle
+  const u = _dumeReady(true); if (!u) return false; u.nav.state = 'come'; u.nav.arriveT = 0; u.nav.marked = false;
+  try { window.speak && window.speak(pick(['Coming, sir.','On my way, sir.']), 'normal'); window.tone && window.tone(820,0.07,'sine',0.05); } catch(_){}
+  return true;
+};
+window.__xrDumeFollow = function (on) {   // "follow me" / "stop following"
+  const u = _dumeReady(true); if (!u) return false; u.nav.state = on ? 'follow' : 'idle'; u.nav.arriveT = 0; if (!on) u.nav.wanderT = 0; u.nav.marked = false;
+  try { window.speak && window.speak(on ? pick(['Following, sir.','Right behind you, sir.']) : 'Holding here, sir.', 'normal'); } catch(_){}
+  return true;
+};
+window.__xrDumeStay = function () {   // "stay / wait / hold position"
+  const u = _dumeReady(true); if (!u) return false; u.nav.state = 'stay'; u.nav.arriveT = 0; u.nav.marked = false;
+  try { window.speak && window.speak(pick(['Holding position, sir.','Staying put, sir.','Waiting, sir.']), 'normal'); } catch(_){}
+  return true;
+};
+window.__xrDumeHome = function () {   // "go home / back to your corner / dock"
+  const u = _dumeReady(true); if (!u) return false; const nav = u.nav, h = nav.home || _forge.arm.position;
+  nav.tx = h.x; nav.tz = h.z; nav.state = 'goHome'; nav.arriveT = 0; nav.marked = false;
+  if (_dumeMark) _dumeMark.visible = false;
+  try { window.speak && window.speak(pick(['Returning to my post, sir.','Docking, sir.']), 'normal'); } catch(_){}
+  return true;
+};
+// ============================================================================================
+// HALL OF ARMOR -- floor-anchored shallow arc of self-lit cyan-hologram figures on lit stands.
+// CC0 / public-domain KayKit character GLBs recoloured to additive cyan holograms; figures are STATIC
+// (frozen bind pose -- EdgesGeometry/holo shells don't skin, so no skeletal clips), the life comes
+// from a rigid turntable + underglow only. Summon/dismiss by voice or the wrist ARMORY tile. Stays
+// resident once built so re-summon is instant. XR-safe; disposed on sessionend. ===================
+let _hall = null, _hallBuilding = false, _hallLoader = null;
+const _HALL_MODELS = [
+  { url:'https://cdn.jsdelivr.net/gh/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0@main/addons/kaykit_character_pack_adventures/Characters/gltf/Knight.glb',       mark:'MARK I'   },
+  { url:'https://cdn.jsdelivr.net/gh/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0@main/addons/kaykit_character_pack_adventures/Characters/gltf/Barbarian.glb',    mark:'MARK II'  },
+  { url:'https://cdn.jsdelivr.net/gh/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0@main/addons/kaykit_character_pack_adventures/Characters/gltf/Mage.glb',         mark:'MARK III' },
+  { url:'https://cdn.jsdelivr.net/gh/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0@main/addons/kaykit_character_pack_adventures/Characters/gltf/Rogue_Hooded.glb',  mark:'MARK IV'  },
+  { url:'https://cdn.jsdelivr.net/gh/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0@main/addons/kaykit_character_pack_skeletons/Characters/gltf/Skeleton_Warrior.glb', mark:'MARK V'   },
+];
+function _hallRecolor(obj) {   // additive cyan hologram, modest opacity (additive over-saturates to white in bright passthrough)
+  obj.traverse(o => { if (o.isMesh || o.isSkinnedMesh) {
+    o.material = new THREE.MeshBasicMaterial({ color:0x7fefff, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending, depthWrite:false });
+    o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; } });
+}
+function _makeHallNiche(mark) {
+  const G = new THREE.Group();
+  const ring = (r,c,o) => { const m = new THREE.Mesh(new THREE.TorusGeometry(r,0.01,8,40),
+    new THREE.MeshBasicMaterial({ color:c, transparent:true, opacity:o, blending:THREE.AdditiveBlending, depthWrite:false })); m.rotation.x = Math.PI/2; m.position.y = 0.12; G.add(m); };
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.5,0.12,24,1,true),
+    new THREE.MeshBasicMaterial({ color:0x7fefff, transparent:true, opacity:0.45, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide })); ped.position.y = 0.06; G.add(ped);
+  ring(0.5,0x7fefff,0.7); ring(0.36,0xffb648,0.6);   // underglow rings (amber accent inner)
+  const post = (x) => { const p = new THREE.Mesh(new THREE.BoxGeometry(0.03,2.2,0.03),
+    new THREE.MeshBasicMaterial({ color:0x7fefff, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending, depthWrite:false })); p.position.set(x,1.1,-0.35); G.add(p); };
+  post(-0.5); post(0.5);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(1.06,0.03,0.03),
+    new THREE.MeshBasicMaterial({ color:0xffb648, transparent:true, opacity:0.55, blending:THREE.AdditiveBlending, depthWrite:false })); bar.position.set(0,2.2,-0.35); G.add(bar);
+  try { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const cx = cv.getContext('2d');
+    cx.fillStyle = 'rgba(127,239,255,0.95)'; cx.font = '700 34px "JetBrains Mono", monospace'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(mark, 128, 34);
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(cv), transparent:true, blending:THREE.AdditiveBlending, depthWrite:false }));
+    spr.scale.set(0.5,0.125,1); spr.position.set(0,0.34,0.42); G.add(spr); } catch(_){}
+  const turn = new THREE.Group(); G.add(turn);   // the figure mounts here + slowly rotates
+  G.userData = { turn };
+  return G;
+}
+function _hallAnchor() {   // stand the arc on the floor with YOU at its focal centre
+  if (!_hall) return;
+  const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
+  _dumeFwd.set(0,0,-1).applyQuaternion(cam.quaternion); _dumeFwd.y = 0; if (_dumeFwd.lengthSq() < 1e-6) _dumeFwd.set(0,0,-1); _dumeFwd.normalize();
+  const fy = (typeof _forgeFloorY === 'function' ? _forgeFloorY(_dumeCam) : _dumeCam.y - 1.55);
+  _hall.position.set(_dumeCam.x, fy, _dumeCam.z);
+  _hall.rotation.y = Math.atan2(-_dumeFwd.x, -_dumeFwd.z);   // arc curves out ahead of you (flip signs if it lands behind you)
+}
+window.__xrHallOfArmor = function (show) {
+  if (show === false) { if (_hall) _hall.visible = false; return true; }
+  if (_hall) { _hall.visible = true; _hallAnchor(); try { window.speak && window.speak('The Hall of Armor, sir.', 'confident'); } catch(_){} return true; }
+  if (_hallBuilding) return true; _hallBuilding = true;
+  _hall = new THREE.Group(); _hall.userData = { niches: [], t: 0 }; scene.add(_hall);
+  const N = _HALL_MODELS.length, R = 2.6, sweep = 2.4;   // ~137deg arc, 2.6m radius
+  if (!_hallLoader) _hallLoader = new GLTFLoader();
+  const _myHall = _hall;
+  for (let i = 0; i < N; i++) {
+    const th = (N > 1 ? -sweep/2 + i*sweep/(N-1) : 0);
+    const niche = _makeHallNiche(_HALL_MODELS[i].mark);
+    niche.position.set(R*Math.sin(th), 0, -R*Math.cos(th)); niche.rotation.y = -th;   // +Z (figure/plaque) faces the focal centre
+    _hall.add(niche); _hall.userData.niches.push(niche);
+    _hallLoader.load(_HALL_MODELS[i].url, (gltf) => { try {
+      if (_hall !== _myHall) return;   // session ended / Hall re-summoned mid-load -> drop it (nothing cloned yet, so no leak)
+      let skin = false; gltf.scene.traverse(o => { if (o.isSkinnedMesh) skin = true; });
+      const fig = skin ? _skeletonClone(gltf.scene) : gltf.scene.clone(true);
+      _hallRecolor(fig);
+      const box = new THREE.Box3().setFromObject(fig), sz = new THREE.Vector3(); box.getSize(sz);
+      fig.scale.setScalar(1.7 / (sz.y || 1));                                          // ~1.7m tall
+      const box2 = new THREE.Box3().setFromObject(fig); fig.position.y = -box2.min.y + 0.12;   // feet on the pedestal top
+      niche.userData.turn.add(fig);
+    } catch(_){} }, undefined, () => {/* a 404/CORS just leaves an empty lit niche -- fail-safe */});
+  }
+  _hallAnchor(); _hallBuilding = false;
+  try { window.speak && window.speak('Opening the Hall of Armor, sir.', 'confident'); window.tone && window.tone(660, 0.1, 'sine', 0.05); } catch(_){}
+  return true;
+};
+function _updateHall() {
+  if (!_hall || !_hall.visible) return;
+  _hall.userData.t += 0.016;
+  for (const n of _hall.userData.niches) { if (n.userData.turn) n.userData.turn.rotation.y += 0.004; }   // slow turntable = the only motion
+}
 function _updateForge() {
   if (!_forge) return;
   // ambient motes drift upward through the projector light, looping back to the floor
@@ -8675,7 +8851,20 @@ function _updateForge() {
   const now = performance.now(), aT = u.action ? (now - u.actionT0)/1000 : 0;
   if (u.action && aT > 2.2) u.action = null;   // actions last ~2.2s then return to idle
   // idle sway around the base pose (DUM-E watching over the bench)
-  let s1 = u.s1Base + Math.sin(u.t*0.7)*0.06, s2 = u.s2Base + Math.sin(u.t*0.9+1)*0.08, headX = Math.sin(u.t*0.6)*0.1, clawOpen = 0;
+  // RELAXED "AWAITING ORDERS" IDLE: the boom used to sit near-vertical (pointing at the sky) with a
+  // tiny sway -> a stiff statue. Now it RESTS lowered + elbow curled forward (same DOWN direction the
+  // grip-IK uses to reach the floor) and slowly BREATHES up/down on several frequencies so it reads as
+  // a hydraulic arm at ease. Powered-down => it slumps all the way limp.
+  // seg1 points (-sin z, cos z): MORE NEGATIVE z tilts the boom forward/down out of the skyward rest,
+  // so a relaxed idle uses s1Base MINUS an offset (a positive offset would only stand it up straighter).
+  const _br = Math.sin(u.t*0.5), _dr = Math.sin(u.t*0.21 + 1.1);
+  let s1, s2, headX, clawOpen = 0.14 + Math.sin(u.t*0.6)*0.07;   // claw fidgets a touch = alive
+  if (u.powered === false) { s1 = u.s1Base - 0.55; s2 = u.s2Base - 0.70; headX = 0.45; clawOpen = 0; }   // slumped forward / offline
+  else {
+    s1 = u.s1Base - 0.24 + _br*0.11 + _dr*0.04;                     // shoulder eased DOWN-forward (lowers the boom) + breathe
+    s2 = u.s2Base - 0.34 - _br*0.09 + Math.sin(u.t*0.37+0.6)*0.05;  // elbow curls the forearm in/down, counter-breathes
+    headX = 0.16 + Math.sin(u.t*0.33)*0.11;                         // head hangs slightly + slow scan (looking around)
+  }
   // MODEL TRACKING: the TURRET yaws toward the active hologram + the head tilts to its height (not while carrying it)
   try {
     if (!u.nav.carried && window._h3d && window._h3d.cur && typeof root !== 'undefined' && root.parent) {
@@ -8693,6 +8882,10 @@ function _updateForge() {
   else if (u.action === 'clear') { const e = Math.sin(Math.min(1,aT)*Math.PI); s1 = u.s1Base - 0.3*e; }
   else if (u.action === 'spray') { clawOpen = 0.6;
     if (aT < 1.0 && Math.random() < 0.6) { try { u.head.getWorldPosition(_dumeTmp); _dumeTmp.z += 0.05; window.__xrParticleBurst && window.__xrParticleBurst(_dumeTmp); } catch(_){} } }
+  else if (u.action === 'nod')   { headX = 0.12 + Math.sin(aT*7)*0.28; }                                   // YES -- head bobs
+  else if (u.action === 'shake') { u.turn.rotation.y = Math.sin(aT*8)*0.34; headX = 0.10; }                // NO -- turret shakes
+  else if (u.action === 'tilt')  { headX = -0.34; s1 = u.s1Base + 0.14; }                                  // curious cock of the head
+  else if (u.action === 'dance') { u.turn.rotation.y += 0.15; s2 = u.s2Base + Math.sin(aT*8)*0.34; headX = Math.sin(aT*6)*0.2; clawOpen = 0.4; }  // celebrate / spin
   // FETCH GRIP POSE overrides the idle sway ONLY during a "bring this to me" (gripPhase set) -- so this can't
   // disturb DUM-E's normal idle. reach/grip = bend the boom DOWN-forward with the claw open, then closed;
   // carry = hold it up and in while wheeling back. Angles clamped; hydraulics (seg1/seg2) read as the motion.
@@ -8720,7 +8913,16 @@ function _updateForge() {
   } else if (u.gripPhase === 'carry') { s1 = u.s1Base + 0.25; s2 = u.s2Base + 0.15; headX = -0.1; clawOpen = 0; }
   u.seg1.rotation.z = s1; u.seg2.rotation.z = s2; u.head.rotation.x = headX;
   for (const c of u.claw) { c.j.rotation.z = c.base.z * (1 - clawOpen*1.5); c.j.rotation.x = c.base.x * (1 - clawOpen*1.5); }
-  u.eye.material.opacity = 0.7 + 0.3*Math.sin(u.t*3);   // camera-eye glow
+  // RECENTRE THE TURRET when idle: shake/dance twist u.turn and the model-tracker only corrects it while a
+  // hologram is up, so with no model the yaw would otherwise stay stuck off-axis forever.
+  if (!u.action) { const _trk = !u.nav.carried && window._h3d && window._h3d.cur && typeof root !== 'undefined' && root && root.parent;
+    if (!_trk) u.turn.rotation.y += (0 - u.turn.rotation.y) * 0.05; }
+  u.eye.material.opacity = (u.powered === false ? 0.12 : 0.7 + 0.3*Math.sin(u.t*3));   // camera-eye glow (dims when off)
+  // destination marker: pulse it while he's travelling to / waiting at a "go over there" spot, else hide
+  try { if (_dumeMark) { const st = u.nav.state;
+    if (u.nav.marked && (st === 'goPoint' || st === 'stay')) { _dumeMark.visible = true; _dumeMark.userData._t += 0.016;
+      const sc = 1 + Math.sin(_dumeMark.userData._t*3)*0.08; _dumeMark.scale.set(sc,1,sc); _dumeMark.rotation.y += 0.015; }
+    else _dumeMark.visible = false; } } catch(_){}
   if (_forge.props) { try { _updateForgeProps(_forge.props); } catch(_){} }
 }
 // ============================================================================
@@ -10801,6 +11003,7 @@ renderer.xr.addEventListener('sessionend', () => {
   window._xrPresenting = false;
   try { _palmPanel.visible = false; _palmVis = 0; _palmFacingT = 0; } catch(_){}   // stow the palm menu
   try { window.__xrForge && window.__xrForge(false); } catch(_){}   // tear down the forge bay (rack/dressing/arm)
+  try { if (_hall) { _hall.traverse(o => { o.geometry && o.geometry.dispose && o.geometry.dispose(); if (o.material) { (Array.isArray(o.material)?o.material:[o.material]).forEach(m => { m.map && m.map.dispose && m.map.dispose(); m.dispose && m.dispose(); }); } }); scene.remove(_hall); _hall = null; } } catch(_){}   // tear down the Hall of Armor
   try { window.__xrWarTable && window.__xrWarTable(false); } catch(_){}   // stow the war table (also tears down its globe)
   try { window.__xrEarthProjector && window.__xrEarthProjector(false); } catch(_){}   // tear down the globe
   try { window.__h3dDismissPanels && window.__h3dDismissPanels(); } catch(_){}   // clear all AR panels + nebula (else they ghost into the desktop view)
@@ -11433,6 +11636,7 @@ renderer.setAnimationLoop((time) => {
     _checkPalmTap();
     if (_benchFX.length) _updateBenchFX();   // FORGE print-up FX
     if (_forge) _updateForge();              // FORGE phase-2 helper-arm idle sway
+  try { _updateHall(); } catch(_){}        // Hall of Armor turntables
     _updatePanels(time);
     _updateARNebula(time);
     _updateMeasure();
