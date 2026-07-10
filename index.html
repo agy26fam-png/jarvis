@@ -934,7 +934,7 @@ for(let i=0;i<12;i++){const a=(i*30-90)*PI/180,P=pt(258,a);
   for(let i=0;i<=24;i++){const y=150+i*10,big=i%4===0;
     hud.appendChild(el('line',{x1:gx,y1:y,x2:gx+dir*(big?9:4),y2:y,stroke:'#4fb8d8','stroke-width':big?0.9:0.5,opacity:big?0.45:0.2}));}});
 
-const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,403 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 27", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "2/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
+const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,403 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 27", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "3/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
 const spk=document.getElementById('spokes'),ag=document.getElementById('agents');
 A.forEach(o=>{const r=o.a*PI/180,c=Math.cos(r),s=Math.sin(r),dx=cx+150*c,dy=cy+150*s;
   spk.appendChild(el('line',{x1:cx+96*c,y1:cy+96*s,x2:dx,y2:dy,stroke:'#3fa8cc','stroke-width':1,opacity:0.2}));
@@ -2567,6 +2567,11 @@ const MAP=[
  {k:['happy birthday'],a:()=>pick(["Many happy returns, sir. Shall I schedule a celebratory post?","Happy birthday, sir. You don't look a day over last quarter.","Felicitations, sir."])},
  // standby/shutdown moved to top of handle() so they fire BEFORE the brain takes the turn.
 ];
+// NGROK SKIP-WARNING SHIM: the ngrok free tier serves a browser interstitial to any browser-UA request
+// that lacks this header -- which would break every brain call from the Quest. Inject it for all requests
+// to an ngrok host so the headset always gets the real API, not the warning page. (Runs before any fetch.)
+(function(){ const _f=window.fetch; if(_f&&!window.__ngrokShim){ window.__ngrokShim=1;
+  window.fetch=function(u,o){ try{ const s=(typeof u==='string')?u:(u&&u.url)||''; if(s.indexOf('ngrok')!==-1){ o=Object.assign({},o); o.headers=Object.assign({'ngrok-skip-browser-warning':'true'},(o&&o.headers)||{}); } }catch(_){} return _f.call(this,u,o); }; } })();
 // ---- AI-first: real questions go to the Claude brain; utilities stay instant; keyword fallback if the brain is offline ----
 // BRAIN is overridable so the SAME static build works locally AND when hosted (Netlify/Oculus):
 //   - ?brain=https://my-brain.example  (one-time, also remembered)  OR  localStorage 'jarvisBrain'
