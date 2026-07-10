@@ -2621,7 +2621,7 @@ window.__brainKey=function(){try{return localStorage.getItem('jarvisBrainKey')||
             const dead=BRAIN;BRAIN='';window.BRAIN='';_fails=0;
             console.warn('brain tunnel unreachable -- circuit open, retrying discovery in 2min');
             setTimeout(()=>{
-              fetch('/brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
+              fetch('brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
                 if(d&&d.url){BRAIN=String(d.url).replace(/\/$/,'');window.BRAIN=BRAIN;
 // ==== QUEST DIAGNOSTIC REPORTER ==========================================================
 // Buffers lifecycle marks + main-thread stalls (>=100ms longtasks) + JS errors, and posts
@@ -2661,7 +2661,7 @@ window.__brainKey=function(){try{return localStorage.getItem('jarvisBrainKey')||
   // so crash telemetry flows even when the main brain connection is misconfigured.
   let _diagUrl='';
   if(BRAIN)_diagUrl=BRAIN;
-  else fetch('/brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null)
+  else fetch('brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null)
     .then(d=>{if(d&&d.url)_diagUrl=String(d.url).replace(/[/]$/,'');}).catch(()=>{});
   setInterval(()=>{
     const target=_diagUrl||BRAIN;
@@ -2705,7 +2705,7 @@ window.__brainKey=function(){try{return localStorage.getItem('jarvisBrainKey')||
   function _retry(){ if(BRAIN||_locked||++_tries>40) return; setTimeout(_discoverBrain,12000); }   // retry ~8min then give up
   function _discoverBrain(){ try{
     if(BRAIN)return;   // local default or manual override already set (or already discovered)
-    fetch('/brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
+    fetch('brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
       if(!d||!d.url){_retry();return;}
       const cand=String(d.url).replace(/\/$/,'');
       // Probe before committing so a STALE brain.json (tunnel died, PC off) can't become the brain URL.
