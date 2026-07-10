@@ -8799,27 +8799,52 @@ function _makeHallNiche(mark) {
   G.userData = { turn };
   return G;
 }
-function _hallAnchor() {   // stand the arc on the floor with YOU at its focal centre
+function _hallAnchor() {   // lay out every niche: backed against the REAL room walls if scanned, else a fallback arc
   if (!_hall) return;
   const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
   _dumeFwd.set(0,0,-1).applyQuaternion(cam.quaternion); _dumeFwd.y = 0; if (_dumeFwd.lengthSq() < 1e-6) _dumeFwd.set(0,0,-1); _dumeFwd.normalize();
   const fy = (typeof _forgeFloorY === 'function' ? _forgeFloorY(_dumeCam) : _dumeCam.y - 1.55);
+  const niches = _hall.userData.niches, N = niches.length; if (!N) return;
+  const R = _forgeRoom;
+  // ROOM MODE: stand the suits against the real walls, spread evenly around the whole perimeter, facing the centre.
+  if (R && (R.maxX - R.minX) > 1.8 && (R.maxZ - R.minZ) > 1.8) {
+    _hall.position.set(0, fy, 0); _hall.rotation.y = 0;                          // niches placed in WORLD space
+    const M = 0.75, x0 = R.minX + M, x1 = R.maxX - M, z0 = R.minZ + M, z1 = R.maxZ - M;
+    const wx = Math.max(0.1, x1 - x0), wz = Math.max(0.1, z1 - z0), per = 2 * (wx + wz);
+    for (let i = 0; i < N; i++) {
+      const d = ((i + 0.5) / N) * per; let x, z;
+      if (d < wx)              { x = x0 + d;              z = z0; }             // wall along -Z
+      else if (d < wx + wz)    { x = x1;                  z = z0 + (d - wx); }  // wall along +X
+      else if (d < 2*wx + wz)  { x = x1 - (d - wx - wz);  z = z1; }             // wall along +Z
+      else                     { x = x0;                  z = z1 - (d - 2*wx - wz); }  // wall along -X
+      niches[i].position.set(x, 0, z);
+      niches[i].rotation.y = Math.atan2(R.cx - x, R.cz - z);                     // +Z (figure/plaque) faces the room centre
+    }
+    return;
+  }
+  // FALLBACK ARC (room not scanned yet): shallow arc ahead of you, you at the focal centre.
   _hall.position.set(_dumeCam.x, fy, _dumeCam.z);
-  _hall.rotation.y = Math.atan2(-_dumeFwd.x, -_dumeFwd.z);   // arc curves out ahead of you (flip signs if it lands behind you)
+  _hall.rotation.y = Math.atan2(-_dumeFwd.x, -_dumeFwd.z);
+  const Rr = 2.6, sweep = 2.4;
+  for (let i = 0; i < N; i++) { const th = (N > 1 ? -sweep/2 + i*sweep/(N-1) : 0);
+    niches[i].position.set(Rr*Math.sin(th), 0, -Rr*Math.cos(th)); niches[i].rotation.y = -th; }
+}
+function _hallAutoScan() {   // no room scanned yet -> scan it, then re-lay-out against the real walls when it finishes (~4s)
+  if (_forgeRoom || !window.__xrScanRoom) return;
+  try { window.__xrScanRoom(); } catch(_){}
+  setTimeout(() => { try { if (_hall && _hall.visible) _hallAnchor(); } catch(_){} }, 4300);
 }
 window.__xrHallOfArmor = function (show) {
   if (show === false) { if (_hall) _hall.visible = false; return true; }
-  if (_hall) { _hall.visible = true; _hallAnchor(); try { window.speak && window.speak('The Hall of Armor, sir.', 'confident'); } catch(_){} return true; }
+  if (_hall) { _hall.visible = true; _hallAnchor(); _hallAutoScan(); try { window.speak && window.speak('The Hall of Armor, sir.', 'confident'); } catch(_){} return true; }
   if (_hallBuilding) return true; _hallBuilding = true;
   _hall = new THREE.Group(); _hall.userData = { niches: [], t: 0 }; scene.add(_hall);
-  const N = _HALL_MODELS.length, R = 2.6, sweep = 2.4;   // ~137deg arc, 2.6m radius
+  const N = _HALL_MODELS.length;
   if (!_hallLoader) _hallLoader = new GLTFLoader();
   const _myHall = _hall;
   for (let i = 0; i < N; i++) {
-    const th = (N > 1 ? -sweep/2 + i*sweep/(N-1) : 0);
     const niche = _makeHallNiche(_HALL_MODELS[i].mark);
-    niche.position.set(R*Math.sin(th), 0, -R*Math.cos(th)); niche.rotation.y = -th;   // +Z (figure/plaque) faces the focal centre
-    _hall.add(niche); _hall.userData.niches.push(niche);
+    _hall.add(niche); _hall.userData.niches.push(niche);   // _hallAnchor lays out ALL niches (real walls, or arc fallback)
     _hallLoader.load(_HALL_MODELS[i].url, (gltf) => { try {
       if (_hall !== _myHall) return;   // session ended / Hall re-summoned mid-load -> drop it (nothing cloned yet, so no leak)
       let skin = false; gltf.scene.traverse(o => { if (o.isSkinnedMesh) skin = true; });
@@ -8831,7 +8856,7 @@ window.__xrHallOfArmor = function (show) {
       niche.userData.turn.add(fig);
     } catch(_){} }, undefined, () => {/* a 404/CORS just leaves an empty lit niche -- fail-safe */});
   }
-  _hallAnchor(); _hallBuilding = false;
+  _hallAnchor(); _hallAutoScan(); _hallBuilding = false;
   try { window.speak && window.speak('Opening the Hall of Armor, sir.', 'confident'); window.tone && window.tone(660, 0.1, 'sine', 0.05); } catch(_){}
   return true;
 };
