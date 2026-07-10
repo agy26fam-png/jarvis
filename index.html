@@ -2382,6 +2382,10 @@ async function fishSpeak(text){
   }catch(e){jv.classList.remove('speaking');return false;}
 }
 function _webSpeak(t,emo){
+  // NO Web Speech engine (Meta Quest browser has none) -> never silently drop the line; speak it via the
+  // brain /tts voice instead. This also rescues the case where _useFish got turned off after a transient
+  // /tts blip, which on Quest would otherwise leave Jarvis permanently mute for the session.
+  if(!synth||!synth.speak){ if(t)fishSpeak(t).catch(()=>{}); if(typeof said!=='undefined'&&said)said.textContent=t; return; }
   const e=EMO[(emo||'').toLowerCase()]||EMO.normal;
   let sentences=t.split(/(?<=[.!?…])\s+/).map(s=>s.trim()).filter(Boolean).slice(0,8);
   if(!sentences.length)sentences=[t];
