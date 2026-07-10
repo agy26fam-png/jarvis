@@ -9750,7 +9750,7 @@ function _positionReticle() {
 // #42b PREMIUM AR HUD -- a head-locked visor overlay: corner brackets, top status bar (mode/time/uplink/
 // target), a centre crosshair, and side ticks. Thin cyan lines on a transparent plane 1m ahead of the eye.
 const _hudCanvas = document.createElement('canvas');
-_hudCanvas.width = 1024; _hudCanvas.height = 640;
+_hudCanvas.width = 1024; _hudCanvas.height = 960;   // NEAR-SQUARE to match the Quest's ~square per-eye FOV (was 16:10 -> that letterbox is what left the top/bottom empty)
 const _hudTex = new THREE.CanvasTexture(_hudCanvas);
 // CURVED HUD -- an EYE-CENTRED DOME. The Quest 2 renders ~97 deg H x 93 deg V per eye (Meta spec), wide
 // enough that a flat billboard visibly stretches at the corners. Meta's guidance for a wide panel: "a
@@ -9762,57 +9762,67 @@ const _hudTex = new THREE.CanvasTexture(_hudCanvas);
 // vertex ends up exactly D from the eye: sqrt((sx*x)^2 + (sy*y)^2 + (D-sag)^2) === D. Rebuilt on every fit
 // change so the dome stays exact. Base geometry is flat; _rebuildHudDome() domes it (called by _applyHudScale).
 const _HUD_SEGX = 28, _HUD_SEGY = 20;
-function _rebuildHudDome() {
+// SPHERICAL CAP placed BY ANGLE: each vertex of the unit plane maps to its fraction of the FOV and lands on a
+// sphere of radius D centred on the eye -- vertex = (D*sin(ax)*cos(ay), D*sin(ay), D*(1-cos(ax)*cos(ay))). That
+// makes the visor (a) FILL the frame exactly (it subtends the full fovH x fovV) and (b) keep every point exactly
+// D from the eye (distance^2 works out to D^2), so straight canvas lines stay readable into the periphery. A flat
+// z-sag dome CANNOT do this for a >90deg FOV (the flat half-width exceeds the sphere radius and the edges collapse
+// to a point) -- this angular construction is the correct one. Reads the ORIGINAL unit coords from _hudBaseU/V.
+let _hudBaseU = null, _hudBaseV = null;
+function _rebuildHudDome(D, fovH, fovV) {
   const pos = _hudPlane.geometry.attributes.position;
-  const D = _hudDist, sx = _hudScaleX, sy = _hudScaleY;
   for (let i = 0; i < pos.count; i++) {
-    const wx = pos.getX(i) * sx, wy = pos.getY(i) * sy;   // world lateral offset from the visor centre
-    pos.setZ(i, D - Math.sqrt(Math.max(0, D * D - wx * wx - wy * wy)));   // pull onto the eye-centred sphere
+    const ax = _hudBaseU[i] * fovH, ay = _hudBaseV[i] * fovV;
+    const cx = Math.cos(ax), cyy = Math.cos(ay);
+    pos.setX(i, D * Math.sin(ax) * cyy);
+    pos.setY(i, D * Math.sin(ay));
+    pos.setZ(i, D * (1 - cx * cyy));
   }
   pos.needsUpdate = true;
+  _hudPlane.geometry.computeBoundingSphere();
 }
-const _hudPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.0, _HUD_SEGX, _HUD_SEGY),
+const _hudPlane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, _HUD_SEGX, _HUD_SEGY),   // unit base; _rebuildHudDome warps it onto the cap
   new THREE.MeshBasicMaterial({ map: _hudTex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
 _hudPlane.renderOrder = 998; _hudPlane.frustumCulled = false; _hudPlane.visible = false;
+{ const p = _hudPlane.geometry.attributes.position; _hudBaseU = new Float32Array(p.count); _hudBaseV = new Float32Array(p.count);
+  for (let i = 0; i < p.count; i++) { _hudBaseU[i] = p.getX(i); _hudBaseV[i] = p.getY(i); } }   // cache the ORIGINAL unit coords
 // FIT-TO-VIEW calibration (persisted). Default a touch inside the FOV so the frame is visible, then the user
 // fine-tunes to their exact view with "HUD bigger/smaller" / "HUD closer/farther" / "reset HUD".
-const _HUD_LO = 0.30, _HUD_HI = 1.5;   // scale range the width/height sliders span
-// FIT DEFAULTS from Quest 2 FOV (~97 H / 93 V). The visor plane is 1.6x1.0m; at scale 0.5 / dist 0.55m
-// the frame subtends ~72 deg wide x ~49 deg tall -- comfortably INSIDE the FOV with margin, so the whole
-// frame is visible (the old 0.62/0.42 defaults subtended ~99 deg and clipped off-screen edges).
-const _HUD_DEF_S = 0.5, _HUD_DEF_D = 0.55, _HUD_CAL_V = '2';
-let _hudScaleX = _HUD_DEF_S, _hudScaleY = _HUD_DEF_S, _hudDist = _HUD_DEF_D;
-// Only honour PERSISTED calibration from this fit-version -- older saved values were clipped, so
-// bumping _HUD_CAL_V force-adopts the new fitted defaults once (then the user can re-tune from there).
+// AUTO-FIT: the visor size is recomputed EVERY frame from the headset's REAL lens frustum (in _positionHUD),
+// so it exactly fills the view on any device and never drifts on reopen. _hudScaleX/Y are OUTPUTS of that fit,
+// not stored inputs. The only two things the user tweaks are DISTANCE (closer/farther) and a FILL margin
+// (bigger/smaller = 100% edge-to-edge vs a slight inset).
+const _HUD_DEF_D = 0.55, _HUD_DEF_FILL = 1.0, _HUD_CAL_V = '3';
+let _hudDist = _HUD_DEF_D, _hudFill = _HUD_DEF_FILL;
+let _hudFovH = -1, _hudFovV = -1, _hudFovD = -1;   // last-applied fit (so we only re-warp the cap when it changes)
 try {
   if (localStorage.getItem('hudCalV') === _HUD_CAL_V) {
-    const sx=parseFloat(localStorage.getItem('hudScaleX')), sy=parseFloat(localStorage.getItem('hudScaleY')), d=parseFloat(localStorage.getItem('hudDist'));
-    if (sx>0) _hudScaleX=sx; if (sy>0) _hudScaleY=sy; if (d>0) _hudDist=d;
-  } else { localStorage.setItem('hudCalV', _HUD_CAL_V); }
+    const d=parseFloat(localStorage.getItem('hudDist')), f=parseFloat(localStorage.getItem('hudFill'));
+    if (d>0) _hudDist=d; if (f>0) _hudFill=f;
+  } else { localStorage.setItem('hudCalV', _HUD_CAL_V); localStorage.removeItem('hudScaleX'); localStorage.removeItem('hudScaleY'); }
 } catch(_){}
-function _applyHudScale() {
-  _hudPlane.scale.set(_hudScaleX, _hudScaleY, 1);
-  _rebuildHudDome();   // re-bake the eye-centred dome for the new fit so edges stay equidistant
-  try { localStorage.setItem('hudScaleX',String(_hudScaleX)); localStorage.setItem('hudScaleY',String(_hudScaleY)); localStorage.setItem('hudDist',String(_hudDist)); } catch(_){}
+function _applyHudScale() {   // just persist the two knobs + force _positionHUD to re-warp the cap next frame
+  _hudFovH = -1;
+  try { localStorage.setItem('hudDist',String(_hudDist)); localStorage.setItem('hudFill',String(_hudFill)); } catch(_){}
 }
 _applyHudScale();
 scene.add(_hudPlane);
-window.__xrHudFit = function (kind) {   // voice: bigger/smaller (both axes), closer/farther, reset
-  if (kind==='bigger') { _hudScaleX=Math.min(_HUD_HI,_hudScaleX*1.08); _hudScaleY=Math.min(_HUD_HI,_hudScaleY*1.08); }
-  else if (kind==='smaller') { _hudScaleX=Math.max(_HUD_LO,_hudScaleX/1.08); _hudScaleY=Math.max(_HUD_LO,_hudScaleY/1.08); }
-  else if (kind==='closer') _hudDist=Math.max(0.30,_hudDist-0.03);
-  else if (kind==='farther') _hudDist=Math.min(1.3,_hudDist+0.03);
-  else if (kind==='reset') { _hudScaleX=_HUD_DEF_S; _hudScaleY=_HUD_DEF_S; _hudDist=_HUD_DEF_D; }
+window.__xrHudFit = function (kind) {   // voice: bigger/smaller (fill margin), closer/farther (distance), reset
+  if (kind==='bigger') _hudFill=Math.min(1.15,_hudFill*1.04);
+  else if (kind==='smaller') _hudFill=Math.max(0.7,_hudFill/1.04);
+  else if (kind==='closer') _hudDist=Math.max(0.35,_hudDist-0.03);
+  else if (kind==='farther') _hudDist=Math.min(0.9,_hudDist+0.03);
+  else if (kind==='reset') { _hudDist=_HUD_DEF_D; _hudFill=_HUD_DEF_FILL; }
   _applyHudScale();
   return renderer.xr.isPresenting;
 };
-window.__xrHudSet = function (axis, t01) {   // slider 0..1 -> scale on the width ('w') or height ('h') axis
-  const v = _HUD_LO + Math.max(0,Math.min(1,t01))*(_HUD_HI-_HUD_LO);
-  if (axis==='w') _hudScaleX=v; else _hudScaleY=v; _applyHudScale(); return v;
+window.__xrHudSet = function (axis, t01) {   // slider 0..1 -> 'w' = fill margin, 'h' = distance
+  const t = Math.max(0,Math.min(1,t01));
+  if (axis==='w') _hudFill = 0.7 + t*0.45; else _hudDist = 0.35 + t*0.55;
+  _applyHudScale(); return t;
 };
-window.__xrHudGet = function (axis) {   // current scale -> 0..1 for the slider knob
-  const v = axis==='w' ? _hudScaleX : _hudScaleY;
-  return Math.max(0,Math.min(1,(v-_HUD_LO)/(_HUD_HI-_HUD_LO)));
+window.__xrHudGet = function (axis) {
+  return axis==='w' ? Math.max(0,Math.min(1,(_hudFill-0.7)/0.45)) : Math.max(0,Math.min(1,(_hudDist-0.35)/0.55));
 };
 let _hudRedrawT = 0;
 // FACEPLATE boot: set on sessionstart -> _drawHUD runs a one-time staggered power-on reveal.
@@ -9833,7 +9843,7 @@ function _bootSeg(a, b) {
 // pattern-read over raw data). Glow is baked in-canvas via shadowBlur -- no full-scene bloom pass
 // (expensive on Quest + would milk-out the additive plane).
 function _drawHUD() {
-  const ctx = _hudCanvas.getContext('2d'), W = 1024, H = 640, A = 'rgba(127,239,255,', Am = 'rgba(255,182,72,';
+  const ctx = _hudCanvas.getContext('2d'), W = 1024, H = 960, A = 'rgba(127,239,255,', Am = 'rgba(255,182,72,';
   ctx.clearRect(0, 0, W, H); ctx.lineCap = 'round'; ctx.textBaseline = 'middle';
   try { ctx.letterSpacing = '0px'; } catch(_){}
   const m = 40, cx = W/2, cy = H/2;
@@ -9844,7 +9854,7 @@ function _drawHUD() {
   const bText  = _bootSeg(0.48, 0.80);   // status + telemetry
   const bRet   = _bootSeg(0.70, 1.00);   // targeting reticle draws last
   // HELMET INTERIOR -- horizontally-OVAL dark vignette (visor shape). Normal-blended plane -> dark reads dark over passthrough.
-  const R = Math.max(W,H)*0.62, sqY = 0.66;
+  const R = Math.max(W,H)*0.66, sqY = 0.92;   // near-round vignette for the ~square FOV (was a wide 16:10 oval)
   ctx.save(); ctx.translate(cx, cy); ctx.scale(1, sqY);
   const hv = ctx.createRadialGradient(0, 0, 0, 0, 0, R*1.12);
   hv.addColorStop(0, 'rgba(4,14,22,0)'); hv.addColorStop(0.5, 'rgba(4,14,22,0)');
@@ -9967,15 +9977,31 @@ function _drawHUD() {
   }
   _hudTex.needsUpdate = true;
 }
-const _hudFwd = new THREE.Vector3(), _hudCamPos = new THREE.Vector3();
+const _hudFwd = new THREE.Vector3(), _hudCamPos = new THREE.Vector3(), _hudRight = new THREE.Vector3(), _hudUp = new THREE.Vector3();
 function _positionHUD() {
   if (!renderer.xr.isPresenting) { _hudPlane.visible = false; return; }
   _hudPlane.visible = true;
   const cam = renderer.xr.getCamera();
   cam.getWorldPosition(_hudCamPos);
-  _hudPlane.position.copy(_hudCamPos);
+  const D = _hudDist;
+  // AUTO-FIT TO THE REAL LENS FRUSTUM. Read each eye's WebXR projection matrix -> the frustum HALF-ANGLES:
+  // rightHalf = atan((1+P8)/P0), leftHalf = atan((1-P8)/P0); fovH = left+right (same for vertical via P5/P9).
+  // Average both eyes (their outward asymmetry cancels -> a centred fit). Then warp the cap to subtend exactly
+  // fovH x fovV at distance D. Recomputed from live optics -> fills the frame on any headset, identical every
+  // session (no drift). Only re-warps when the fit actually changes.
+  const subs = (cam.cameras && cam.cameras.length) ? cam.cameras : [cam];
+  let p0=0, p5=0, p8=0, p9=0, n=0;
+  for (const c of subs) { const e = c.projectionMatrix && c.projectionMatrix.elements; if (e && e[0] && e[5]) { p0+=e[0]; p5+=e[5]; p8+=e[8]; p9+=e[9]; n++; } }
+  if (n) {
+    p0/=n; p5/=n; p8/=n; p9/=n;
+    const fovH = (Math.atan((1+p8)/p0) + Math.atan((1-p8)/p0)) * _hudFill;
+    const fovV = (Math.atan((1+p9)/p5) + Math.atan((1-p9)/p5)) * _hudFill;
+    if (Math.abs(fovH-_hudFovH) > 1e-4 || Math.abs(fovV-_hudFovV) > 1e-4 || Math.abs(D-_hudFovD) > 1e-4) {
+      _hudFovH = fovH; _hudFovV = fovV; _hudFovD = D; _rebuildHudDome(D, fovH, fovV);
+    }
+  }
   _hudFwd.set(0, 0, -1).applyQuaternion(cam.quaternion);
-  _hudPlane.position.addScaledVector(_hudFwd, _hudDist);   // calibrated face distance (see __xrHudFit)
+  _hudPlane.position.copy(_hudCamPos).addScaledVector(_hudFwd, D);   // cap centre D ahead; the cap geometry carries the wrap
   _hudPlane.quaternion.copy(cam.quaternion);
   // GAZE-LOCK: honest surface lock off the WebXR hit-test reticle (Quest 2 has no depth sensor, so
   // this locks onto detected planes/surfaces, not recognised objects). Feeds the reticle LOCK state.
