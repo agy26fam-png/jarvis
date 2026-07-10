@@ -8806,20 +8806,23 @@ function _hallAnchor() {   // lay out every niche: backed against the REAL room 
   const fy = (typeof _forgeFloorY === 'function' ? _forgeFloorY(_dumeCam) : _dumeCam.y - 1.55);
   const niches = _hall.userData.niches, N = niches.length; if (!N) return;
   const R = _forgeRoom;
-  // ROOM MODE: line every suit up along the room's LONGEST wall (the one farther from you), facing into the room.
+  // ROOM MODE: line every suit up along the room's LONGEST wall (the one farther from you), evenly spaced
+  // with a decent gap and CENTRED on the wall so they never crowd, all facing into the room.
   if (R && (R.maxX - R.minX) > 1.8 && (R.maxZ - R.minZ) > 1.8) {
     _hall.position.set(0, fy, 0); _hall.rotation.y = 0;                          // niches placed in WORLD space
-    const M = 0.6;
-    if ((R.maxX - R.minX) >= (R.maxZ - R.minZ)) {                                // longest walls run along X -> pick the far one
+    const M = 0.6, GAP = 1.3;                                                    // aim for >=1.3m between suits
+    const alongX = (R.maxX - R.minX) >= (R.maxZ - R.minZ);
+    const usable = (alongX ? (R.maxX - R.minX) : (R.maxZ - R.minZ)) - 2*M;
+    const span = Math.min((N - 1) * GAP, Math.max(0.1, usable));                 // target gap, but never wider than the wall
+    const step = N > 1 ? span / (N - 1) : 0;
+    if (alongX) {
       const zWall = (Math.abs(_dumeCam.z - R.minZ) >= Math.abs(_dumeCam.z - R.maxZ)) ? R.minZ : R.maxZ;
-      const inward = (zWall === R.minZ) ? 1 : -1, z = zWall + inward*M;
-      const x0 = R.minX + M, w = Math.max(0.1, (R.maxX - M) - x0);
-      for (let i = 0; i < N; i++) { niches[i].position.set(x0 + ((i+0.5)/N)*w, 0, z); niches[i].rotation.y = inward > 0 ? 0 : Math.PI; }
-    } else {                                                                     // longest walls run along Z -> pick the far one
+      const inward = (zWall === R.minZ) ? 1 : -1, z = zWall + inward*M, start = R.cx - span/2;
+      for (let i = 0; i < N; i++) { niches[i].position.set(start + i*step, 0, z); niches[i].rotation.y = inward > 0 ? 0 : Math.PI; }
+    } else {
       const xWall = (Math.abs(_dumeCam.x - R.minX) >= Math.abs(_dumeCam.x - R.maxX)) ? R.minX : R.maxX;
-      const inward = (xWall === R.minX) ? 1 : -1, x = xWall + inward*M;
-      const z0 = R.minZ + M, w = Math.max(0.1, (R.maxZ - M) - z0);
-      for (let i = 0; i < N; i++) { niches[i].position.set(x, 0, z0 + ((i+0.5)/N)*w); niches[i].rotation.y = inward > 0 ? Math.PI/2 : -Math.PI/2; }
+      const inward = (xWall === R.minX) ? 1 : -1, x = xWall + inward*M, start = R.cz - span/2;
+      for (let i = 0; i < N; i++) { niches[i].position.set(x, 0, start + i*step); niches[i].rotation.y = inward > 0 ? Math.PI/2 : -Math.PI/2; }
     }
     return;
   }
@@ -8852,7 +8855,8 @@ window.__xrHallOfArmor = function (show) {
       const fig = skin ? _skeletonClone(gltf.scene) : gltf.scene.clone(true);
       _hallRecolor(fig);
       const box = new THREE.Box3().setFromObject(fig), sz = new THREE.Vector3(); box.getSize(sz);
-      fig.scale.setScalar(1.7 / (sz.y || 1));                                          // ~1.7m tall
+      if (!_hall.userData.scale) _hall.userData.scale = 1.75 / (sz.y || 1);   // LOCK one uniform scale from the FIRST suit -> every figure the same height (per-model bbox scaling shrank the weapon-holders)
+      fig.scale.setScalar(_hall.userData.scale);
       const box2 = new THREE.Box3().setFromObject(fig); fig.position.y = -box2.min.y + 0.12;   // feet on the pedestal top
       niche.userData.turn.add(fig);
     } catch(_){} }, undefined, () => {/* a 404/CORS just leaves an empty lit niche -- fail-safe */});
