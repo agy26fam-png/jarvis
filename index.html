@@ -934,7 +934,7 @@ for(let i=0;i<12;i++){const a=(i*30-90)*PI/180,P=pt(258,a);
   for(let i=0;i<=24;i++){const y=150+i*10,big=i%4===0;
     hud.appendChild(el('line',{x1:gx,y1:y,x2:gx+dir*(big?9:4),y2:y,stroke:'#4fb8d8','stroke-width':big?0.9:0.5,opacity:big?0.45:0.2}));}});
 
-const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,403 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 27", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "3/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
+const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,402 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 28", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "3/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
 const spk=document.getElementById('spokes'),ag=document.getElementById('agents');
 A.forEach(o=>{const r=o.a*PI/180,c=Math.cos(r),s=Math.sin(r),dx=cx+150*c,dy=cy+150*s;
   spk.appendChild(el('line',{x1:cx+96*c,y1:cy+96*s,x2:dx,y2:dy,stroke:'#3fa8cc','stroke-width':1,opacity:0.2}));
@@ -5231,7 +5231,6 @@ const _SIGN_ACTIONS = {
   peace: { fn: () => window.__xrScreenshot && window.__xrScreenshot(), say: 'Captured, sir.', tone: 1500 },               // ✌ screenshot
   ok:    { fn: () => window.__xrToggleBlueprint && window.__xrToggleBlueprint(), say: 'Blueprint, sir.', tone: 1300 },    // 👌 blueprint
   ily:   { fn: () => { try { if (window._h3d) { window._h3d.rotY = 0.42; window._h3d.rotX = -0.18; window._h3d.explodeT = 0; } root.rotation.set(0,0,0); root.scale.setScalar(renderer.xr.isPresenting ? (root.userData._baseScale || 0.35) : 1); if (renderer.xr.isPresenting) _placeRootOnBench(); } catch(_){} }, say: 'Reset, sir.', tone: 900 }, // 🤟 -> RESET the model to its correct scale + bench
-  three: { fn: () => window.__h3dNextModel && window.__h3dNextModel(), tone: 1000 },                                       // ✋(3) next model
   four:  { fn: () => window.__xrDeploy && window.__xrDeploy(), say: 'Deploying, sir.', tone: 1400 },                       // four -> deploy set-piece
 };
 function _updateHandSigns(now) {
@@ -5297,33 +5296,18 @@ function _updateHandCommands() {
   }
   if (_gest.bothT0) { _gest.bothT0 = 0; _gest.bothFired = false; _gest.l = L; _gest.r = R; return; }
 
-  // BOTH FISTS held ~0.8s = CLEAR ALL (only when NOT command-pinching)
-  if (!L && !R) {
-    const oL = _handOpenness(_xrHands[0]), oR = _handOpenness(_xrHands[1]);
-    if (oL < 0.28 && oR < 0.28) {
-      if (!_gest.fistT0) _gest.fistT0 = now;
-      else if (!_gest.fistFired && now - _gest.fistT0 > 800) {
-        _gest.fistFired = true;
-        try { window.__h3dDismissPanels && window.__h3dDismissPanels(); } catch(_){}
-        try { window.__drawClear && window.__drawClear(); } catch(_){}
-        try { if (window.holo3dHide) window.holo3dHide(); } catch(_){}
-        try { window.speak('Cleared, sir.', 'normal'); window.tone(520, 0.12, 'sine', 0.05); } catch(_){}
-      }
-    } else { _gest.fistT0 = 0; _gest.fistFired = false; }
-  }
+  // "CLEAR ALL" is VOICE-ONLY now (say "clear" / "dismiss"). The old both-fists-hold-to-delete gesture was
+  // removed: it fired the SAME closed-fist pose used for grabbing, so trying to two-hand grab kept wiping the
+  // whole workspace. Two closed fists now only grab/scale a held model (see _updateXRGrab), never delete.
 
-  // LEFT: hold = PTT; quick double-tap = next model
+  // LEFT middle-pinch: HOLD = push-to-talk. (The old quick double-tap "next model" is gone -- model switching
+  // is voice-only now, so a stray tap of your left hand can't swap your hologram out from under you.)
   if (L && !_gest.l) { _gest.l = true; _gest.lT0 = now; }
   else if (!L && _gest.l) {
     _gest.l = false;
-    const held = now - _gest.lT0;
     if (window._pttActive && window.__pttStop) { window.__pttStop(); try { window.tone(700,0.07,'sine',0.05); } catch(_){} }
-    else if (held < 320) {   // a tap, not a talk-hold
-      if (now - _gest.lTap < 550) { _gest.lTap = 0; try { window.__h3dNextModel && window.__h3dNextModel(); } catch(_){} }
-      else _gest.lTap = now;
-    }
   } else if (L && _gest.l && !window._pttActive && now - _gest.lT0 > 320) {
-    // sustained left hold that wasn't a double-tap window -> start push-to-talk
+    // sustained left hold -> start push-to-talk
     if (window.__pttStart && window.__pttStart()) { try { window.tone(1100,0.07,'sine',0.06); } catch(_){} }
   }
 
@@ -5513,6 +5497,9 @@ function _updateHandRays() {
     if (hits.length) { end = hits[0].point; target = hits[0].object; }
     else end = sm.o.clone().addScaledVector(sm.d, 2.4);
     hand.userData._rayTarget = target ? Object.assign(_rayResolve(target), { uv: hits[0].uv || null }) : null;
+    // LATCH the last thing the pointer was on, so closing your fist a beat AFTER aiming still grabs it (the
+    // curl can nudge the ray off-target for a frame). Distance-grab of panels reads this in _updateXRGrab.
+    if (hand.userData._rayTarget) { hand.userData._rayTargetLast = hand.userData._rayTarget; hand.userData._rayTargetLastT = performance.now(); }
     // VISIBILITY + FADE: the ray is only present when you're actually pointing at something (or dragging). Aimed
     // at nothing it fades to a SHORT stub instead of a long line poking into space; poking hides it entirely.
     const it = _jt(hand, 'index-finger-tip'), tt = _jt(hand, 'thumb-tip');
@@ -5681,14 +5668,10 @@ function _directGrabTarget(hand) {
   if (_arNebula) { _arNebula.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < bestD) { bestD = d; best = { kind:'nebula', obj: _arNebula }; } }
   if (_earthProj) { _earthProj.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < bestD) { bestD = d; best = { kind:'obj', obj: _earthProj }; } }
   if (_warTable) { _warTable.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < bestD) { bestD = d; best = { kind:'obj', obj: _warTable }; } }
-  // LENIENT FALLBACK: if nothing was within arm's reach, grab the NEAREST grabbable (panel OR model OR spawn)
-  // within 1.2m of the pinch -- so a one-hand pinch roughly toward anything MOVES it. This is the fix for the
-  // repeated "I still can't grab items/panels with one hand" -- the old 30cm reach was too tight to ever land.
-  if (!best) { let d2 = 1.2;
-    for (const p of _panels) { if (p.visible === false) continue; p.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < d2) { d2 = d; best = { kind: (p.userData._panelType === 'workbench') ? 'obj' : 'panel', obj: p }; } }
-    if (root && meshData.length) { root.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < d2) { d2 = d; best = { kind:'model', obj: root }; } }
-    for (const sp of _spawns) { sp.getWorldPosition(_dgC); const d = pp.distanceTo(_dgC); if (d < d2) { d2 = d; best = { kind:'spawn', obj: sp }; } }
-  }
+  // NO distance fallback. Direct grab requires your hand to actually be AT the object (within ~30cm of its
+  // surface/centre) -- that is what makes it feel like real physicality and one hand alone can hold it. To move
+  // something far away you POINT at it (the ray) and close your fist: _updateXRGrab falls back to the ray target.
+  // (The old 1.2m "grab the nearest thing" fallback is why a model followed your hand from across the room.)
   return best;
 }
 // META-QUEST-STYLE CORNER RESIZE: on Quest you resize a window by grabbing a CORNER handle and
@@ -5754,22 +5737,24 @@ function _slapUpdate() {
     if (_slapT[h]) _slapVel[h].subVectors(gp, _slapPrev[h]).multiplyScalar(1/dt);
     _slapPrev[h].copy(gp); _slapT[h] = now;
     const spd = _slapVel[h].length();
-    if (!hand || _handClosed(hand) || spd < 1.3) continue;   // grabbing, or too slow -> not a slap
+    if (!hand || _handClosed(hand) || spd < 1.5) continue;   // grabbing, or too slow -> not a slap
     const ms = (typeof modelSize !== 'undefined' ? modelSize : 0.4);
     const cand = [];
-    for (const p of _panels) if (p.visible !== false && !(p.parent && p.parent !== scene)) cand.push([p, 0.3]);
-    if (typeof root !== 'undefined' && meshData.length && _grip.target !== root) cand.push([root, Math.max(0.16, ms*0.6)]);
-    for (const sp of _spawns) cand.push([sp, 0.32]);
-    if (_arNebula) cand.push([_arNebula, 0.4]);
+    for (const p of _panels) if (p.visible !== false && !(p.parent && p.parent !== scene)) cand.push([p, 0.16]);
+    if (typeof root !== 'undefined' && meshData.length && _grip.target !== root) cand.push([root, Math.max(0.12, ms*0.4)]);
+    for (const sp of _spawns) cand.push([sp, 0.16]);
+    if (_arNebula) cand.push([_arNebula, 0.22]);
     for (const [o, r] of cand) {
       if (o.userData._slapCd && now - o.userData._slapCd < 400) continue;
       o.getWorldPosition(_slapC);
-      if (gp.distanceTo(_slapC) < r) {
-        o.userData._vel = o.userData._vel || new THREE.Vector3();
-        o.userData._vel.copy(_slapVel[h]).setLength(Math.min(spd, 6) * 0.4);   // knockback scaled by hit speed
-        o.userData._slapCd = now;
-        try { window.tone && window.tone(300, 0.05, 'sine', 0.05); window.__xrRipple && window.__xrRipple(_slapC.clone()); } catch(_){}
-      }
+      // CONTACT ONLY: hand must be within the object's OWN radius (genuinely touching) AND moving INTO it
+      // (velocity points at the object). A fast wave ACROSS the room -- near nothing, or moving past -- is ignored.
+      if (gp.distanceTo(_slapC) >= r) continue;
+      if (_slapVel[h].x*(_slapC.x-gp.x) + _slapVel[h].y*(_slapC.y-gp.y) + _slapVel[h].z*(_slapC.z-gp.z) <= 0) continue;
+      o.userData._vel = o.userData._vel || new THREE.Vector3();
+      o.userData._vel.copy(_slapVel[h]).setLength(Math.min(spd, 6) * 0.4);   // knockback scaled by hit speed
+      o.userData._slapCd = now;
+      try { window.tone && window.tone(300, 0.05, 'sine', 0.05); window.__xrRipple && window.__xrRipple(_slapC.clone()); } catch(_){}
     }
   }
 }
@@ -5824,7 +5809,8 @@ function _updateXRGrab() {
     if (desired === 'left' || desired === 'right') {
       const hand = _xrHands[desired === 'left' ? 0 : 1];
       // REACH-AND-GRAB first (hand physically at the object), else fall back to point-and-grab (ray aim)
-      const rt = _directGrabTarget(hand) || hand.userData._rayTarget;
+      const rt = _directGrabTarget(hand) || hand.userData._rayTarget
+        || (hand.userData._rayTargetLastT && performance.now() - hand.userData._rayTargetLastT < 350 ? hand.userData._rayTargetLast : null);
       if (rt) {
         if (rt.kind === 'panel') {   // PINCH = grab + move the whole panel; touch (POKE) selects its buttons/sliders
           const pnl = rt.obj;
@@ -7378,16 +7364,35 @@ function _drawBenchSurface(cv) {
   g.strokeStyle = AM+'0.7)'; g.lineWidth = 2; g.beginPath(); g.moveTo(W-92,W-96); g.lineTo(W-92,W-72); g.moveTo(W-104,W-84); g.lineTo(W-80,W-84); g.stroke();
   return cv;
 }
+// L-SHAPED DESK (was a flat slab) -- a main work surface + a perpendicular RETURN wing forming an L, with
+// pedestal drawer units, a cable grommet, and end panels, all in the cyan-wireframe workbench theme. The
+// premium forge props (reactor / helmet / gauntlet / holo) sit on the MAIN top. Local frame: +X right,
+// +Z toward the user (front), so __xrForge can yaw it to face the wearer. Still one grabbable/lockable panel.
 function _makeWorkbench() {
   const G = new THREE.Group();
+  const CY = 0x7fefff, CH = 0xdff4ff, BLUE = 0x2a9fff;
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 1024;
-  const surf = new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.4),
-    new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(_drawBenchSurface(cv)), transparent:true, opacity:0.92, side:THREE.DoubleSide, depthWrite:false }));
-  surf.rotation.x = -Math.PI/2; G.add(surf);
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(1.42,0.03,1.42), new THREE.MeshBasicMaterial({ color:0x061422, transparent:true, opacity:0.6 }));
-  slab.position.y = -0.02; G.add(slab);
-  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.42,0.03,1.42)), new THREE.LineBasicMaterial({ color:0x7fefff, transparent:true, opacity:0.7, blending:THREE.AdditiveBlending }));
-  edges.position.y = -0.02; G.add(edges);
+  const tex = new THREE.CanvasTexture(_drawBenchSurface(cv));
+  const box = (w,h,d,x,y,z,op,col) => { const b = new THREE.BoxGeometry(w,h,d);
+    const m = new THREE.Mesh(b, new THREE.MeshBasicMaterial({ color:0x061422, transparent:true, opacity:0.42, depthWrite:false })); m.position.set(x,y,z); G.add(m);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(b), new THREE.LineBasicMaterial({ color:col||CY, transparent:true, opacity:op==null?0.6:op, blending:THREE.AdditiveBlending })); e.position.set(x,y,z); G.add(e); return e; };
+  const topSurf = (w,d,x,z) => { const s = new THREE.Mesh(new THREE.PlaneGeometry(w,d), new THREE.MeshBasicMaterial({ map:tex, transparent:true, opacity:0.92, side:THREE.DoubleSide, depthWrite:false }));
+    s.rotation.x = -Math.PI/2; s.position.set(x,0,z); G.add(s); box(w+0.02,0.03,d+0.02,x,-0.02,z,0.7); };   // surface + thin slab w/ glowing edge
+  topSurf(1.50,0.82, 0, 0);            // MAIN top (props live here), front edge toward the user
+  topSurf(0.72,1.15, -1.11, -0.165);   // RETURN wing on the left, running back -> the L
+  // pedestal drawer units (body + 3 chrome drawer seams + handles)
+  const pedestal = (x,z,w) => { box(w,0.56,0.52,x,-0.31,z,0.5);
+    for (let i=0;i<3;i++){ const dy=-0.12-i*0.15; box(w*0.9,0.006,0.006,x,dy,z+0.262,0.55,CH); box(0.09,0.02,0.012,x,dy+0.045,z+0.264,0.7,CH); } };
+  pedestal( 0.55, 0.00, 0.44);         // under the main top, right
+  pedestal(-1.11,-0.50, 0.44);         // under the return, back
+  // end + outer leg panels (structure toward the floor)
+  box(0.03,0.62,0.78,-0.72,-0.33, 0.00,0.35);
+  box(0.03,0.62,1.10,-1.45,-0.33,-0.165,0.35);
+  // cable grommet on the main top + a blue power lead dropping through it
+  const gr = new THREE.Mesh(new THREE.TorusGeometry(0.03,0.006,8,20), new THREE.MeshBasicMaterial({ color:CY, transparent:true, opacity:0.7, blending:THREE.AdditiveBlending, depthWrite:false }));
+  gr.rotation.x = -Math.PI/2; gr.position.set(0.55,0.006,-0.3); G.add(gr);
+  const crv = new THREE.QuadraticBezierCurve3(new THREE.Vector3(0.55,0,-0.3), new THREE.Vector3(0.6,-0.32,-0.34), new THREE.Vector3(0.55,-0.6,-0.28));
+  G.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(crv.getPoints(14)), new THREE.LineBasicMaterial({ color:BLUE, transparent:true, opacity:0.6, blending:THREE.AdditiveBlending, depthWrite:false })));
   G.userData._isPanel = true; G.userData._static = true; G.userData._panelType = 'workbench';
   return G;
 }
@@ -7837,41 +7842,56 @@ window.__xrCommandRoom = function () {
   return true;
 };
 const _wristFwd = new THREE.Vector3(), _wristKn = new THREE.Vector3(),
-      _wristFaceDir = new THREE.Vector3(), _wristToCam = new THREE.Vector3(), _wristCamPos = new THREE.Vector3();
+      _wristToCam = new THREE.Vector3(), _wristCamPos = new THREE.Vector3(),
+      _wIdx = new THREE.Vector3(), _wPnk = new THREE.Vector3(), _wPalmN = new THREE.Vector3(),
+      _wDorsal = new THREE.Vector3(), _wUp = new THREE.Vector3(), _wRight = new THREE.Vector3(), _wMat4 = new THREE.Matrix4();
+// dorsal = palmNormal * sign. cross(index-wrist, pinky-wrist) points OUT of the LEFT palm, so -1 flips it to the
+// BACK of the forearm (where a watch sits). If the tablet ever mounts on the palm side instead, flip this to +1.
+const _WRIST_DORSAL_SIGN = -1;
+// WRIST TABLET -- worn like a SMARTWATCH on the back of the LEFT forearm. The frame is derived from JOINT
+// POSITIONS (the raw wrist quaternion has a known L/R chirality quirk this app avoids elsewhere too): handFwd =
+// wrist->knuckles (toward the fingers), dorsal = back-of-forearm normal, and the tablet sits back toward the
+// elbow on the dorsal side. It only lights up when you roll your forearm so its back/side turns toward your
+// eyes -- exactly raise-to-wake on a real watch, and Meta's own wristband-UI rule (majority of the surface
+// must face the user, with a generous rotation range). Poke still works because it reads the live matrixWorld.
 function _positionWristPanel() {
   if (!renderer.xr.isPresenting) { _wristPanel.visible = false; _wristDevice.visible = false; return; }
   const leftHand = _xrHands[0];
   const wrist = leftHand?.joints?.['wrist'];
   if (!wrist) { _wristPanel.visible = false; _wristDevice.visible = false; return; }
-  // the bracelet device sits ON the wrist
+  const idxM = leftHand.joints['index-finger-metacarpal'], pnkM = leftHand.joints['pinky-finger-metacarpal'];
+  // bracelet device stays ON the wrist joint (decorative; quaternion is fine for a radially-symmetric band)
   _wristDevice.visible = true;
   _wristDevice.position.copy(wrist.position);
   _wristDevice.quaternion.copy(wrist.quaternion);
-  // the panel is PROJECTED above the device, tilted toward the user (like the reference gauntlet)
   const _wt = performance.now();
-  // idle: soft glow pulse + rare flicker (projected-light feel)
   _wristMat.opacity = 0.82 + Math.sin(_wt * 0.003) * 0.1 + (Math.sin(_wt * 0.021) * Math.sin(_wt * 0.013) > 0.9 ? -0.18 : 0);
-  _wristPanel.visible = true;
-  _wristPanel.position.copy(wrist.position);
-  _wristPanel.quaternion.copy(wrist.quaternion);
-  // ON THE FOREARM: offset back along the forearm (away from the fingers, using the same wrist-to-knuckle
-  // axis _handRay derives elsewhere) instead of hovering out past the wrist joint.
+  // handFwd: wrist -> knuckle centroid = toward the fingers (distal). The forearm/elbow runs the OTHER way.
   _wristKn.set(0, 0, 0); let kn = 0;
   for (const j of _RAY_KNUCKLES) { const p = leftHand.joints[j]; if (p) { _wristKn.add(p.position); kn++; } }
-  if (kn > 0) { _wristFwd.subVectors(wrist.position, _wristKn.multiplyScalar(1 / kn)); if (_wristFwd.lengthSq() > 1e-6) _wristFwd.normalize(); else _wristFwd.set(0, 0, 0); }
-  else _wristFwd.set(0, 0, 0);
-  _wristPanel.position.addScaledVector(_wristFwd, 0.075);   // ~7.5cm up the forearm from the wrist joint
-  _wristPanel.translateY(0.03 + Math.sin(_wt * 0.0016) * 0.004);   // gentle hover drift, hugging the arm
-  _wristPanel.translateZ(-0.02);
-  _wristPanel.rotateX(-Math.PI * 0.4);
-  // FACE-THE-VIEWER GATING: like checking a real watch -- only legible once you rotate your arm so its
-  // face actually turns toward your eyes. Mirrors Meta's own wrist-button rule (researched): "the majority
-  // of the palm must be facing the user, a generous range of wrist rotation taken into account."
+  if (kn > 0) { _wristFwd.subVectors(_wristKn.multiplyScalar(1 / kn), wrist.position); if (_wristFwd.lengthSq() > 1e-8) _wristFwd.normalize(); else _wristFwd.set(0, 0, -1); }
+  else _wristFwd.set(0, 0, -1);
+  // dorsal (back of the forearm): the (index,wrist,pinky) plane normal points out of the palm -> flip to the back.
+  if (idxM && pnkM) {
+    _wIdx.subVectors(idxM.position, wrist.position); _wPnk.subVectors(pnkM.position, wrist.position);
+    _wPalmN.crossVectors(_wIdx, _wPnk);
+    if (_wPalmN.lengthSq() > 1e-8) { _wPalmN.normalize(); _wDorsal.copy(_wPalmN).multiplyScalar(_WRIST_DORSAL_SIGN); }
+    else _wDorsal.set(0, 1, 0);
+  } else _wDorsal.set(0, 1, 0);
+  // orthonormal basis: z = dorsal (screen faces out the back), y = handFwd made perpendicular (12-o'clock toward
+  // the fingers), x = y X z. This is what makes the tablet lie FLAT on the forearm and face straight out its back.
+  _wUp.copy(_wristFwd).addScaledVector(_wDorsal, -_wristFwd.dot(_wDorsal));
+  if (_wUp.lengthSq() < 1e-8) _wUp.set(0, 1, 0); else _wUp.normalize();
+  _wRight.crossVectors(_wUp, _wDorsal); if (_wRight.lengthSq() < 1e-8) _wRight.set(1, 0, 0); else _wRight.normalize();
+  _wMat4.makeBasis(_wRight, _wUp, _wDorsal);
+  // MOUNT: ~8.5cm back toward the elbow along the forearm + a small lift off the skin on the dorsal side.
+  _wristPanel.position.copy(wrist.position).addScaledVector(_wristFwd, -0.085).addScaledVector(_wDorsal, 0.02);
+  _wristPanel.quaternion.setFromRotationMatrix(_wMat4);
+  // RAISE-TO-WAKE: legible only once the dorsal side turns toward your eyes (roll your forearm to check it).
   renderer.xr.getCamera().getWorldPosition(_wristCamPos);
-  _wristFaceDir.set(0, 0, 1).applyQuaternion(_wristPanel.quaternion);
   _wristToCam.subVectors(_wristCamPos, _wristPanel.position).normalize();
-  const align = _wristFaceDir.dot(_wristToCam);
-  const vis = Math.max(0, Math.min(1, (align - 0.1) / 0.35));   // generous falloff, no hard cutoff
+  const align = _wDorsal.dot(_wristToCam);
+  const vis = Math.max(0, Math.min(1, (align - 0.15) / 0.4));   // generous falloff, no hard cutoff
   _wristMat.opacity *= vis;
   _wristPanel.visible = vis > 0.02;
 }
@@ -8219,6 +8239,7 @@ const _roomPlanes = new THREE.Group();
 let _roomScan = false, _roomScanT0 = 0;
 let _forgeWall = null;   // FORGE phase-2: best (largest) detected wall {m:Matrix4, w, h} -> anchor the workshop to it
 let _forgeFloorYVal = null;   // captured floor-plane Y (for standing DUM-E on the real floor)
+let _forgeRoom = null;   // CURRENT room floor bounds {minX,maxX,minZ,maxZ,cx,cz,y,area} -> keep the forge in THIS room only
 function _forgeFloorY(camPos) { return _forgeFloorYVal != null ? _forgeFloorYVal : (camPos.y - 1.55); }
 window.__xrScanRoom = function () {
   if (!renderer.xr.isPresenting) return false;
@@ -8251,30 +8272,49 @@ function _updatePlaneDetection(frame) {
   const tally = { floor: 0, ceiling: 0, wall: 0, surface: 0 };
   window.__xrClearRoom();
   let bestWall = null, bestWallArea = 0.5, floorY = null;   // FORGE: track the largest wall + the floor height
+  const floors = [], walls = [];                            // + per-plane WORLD extents, to keep the forge in ONE room
   for (const plane of frame.detectedPlanes) {
     const pose = frame.getPose(plane.planeSpace, ref);
     if (!pose || !plane.polygon || plane.polygon.length < 3) continue;
     const m = new THREE.Matrix4().fromArray(pose.transform.matrix);
     const kind = _classifyPlane(m, pose.transform.position.y);
     tally[kind] = (tally[kind] || 0) + 1;
-    if (kind === 'wall') {   // polygon is plane-local (x,z on the surface); bbox extent -> size + area
+    // world-space polygon + its XZ bounding box (used for both drawing and room membership)
+    const pts = plane.polygon.map(pt => new THREE.Vector3(pt.x, pt.y, pt.z).applyMatrix4(m));
+    let wxn=1e9,wxx=-1e9,wzn=1e9,wzx=-1e9;
+    for (const p of pts){ if(p.x<wxn)wxn=p.x; if(p.x>wxx)wxx=p.x; if(p.z<wzn)wzn=p.z; if(p.z>wzx)wzx=p.z; }
+    if (kind === 'wall') {   // polygon is plane-local (x,z on the surface); local bbox -> the wall's face size + area
       let xmn=1e9,xmx=-1e9,zmn=1e9,zmx=-1e9;
       for (const pt of plane.polygon) { if(pt.x<xmn)xmn=pt.x; if(pt.x>xmx)xmx=pt.x; if(pt.z<zmn)zmn=pt.z; if(pt.z>zmx)zmx=pt.z; }
       const w = xmx-xmn, h = zmx-zmn, area = w*h;
+      walls.push({ m: m.clone(), w, h, area, cx:(wxn+wxx)/2, cz:(wzn+wzx)/2 });   // cx,cz = world footprint centre
       if (area > bestWallArea) { bestWallArea = area; bestWall = { m: m.clone(), w, h }; }
     }
-    if (kind === 'floor') { const fy = pose.transform.position.y; if (floorY === null || fy < floorY) floorY = fy; }
+    if (kind === 'floor') { const fy = pose.transform.position.y; if (floorY === null || fy < floorY) floorY = fy;
+      floors.push({ minX:wxn, maxX:wxx, minZ:wzn, maxZ:wzx, y:fy, area:(wxx-wxn)*(wzx-wzn) }); }
     const col = kind === 'floor' ? 0x5affa0 : kind === 'wall' ? 0x7fb8ff
               : kind === 'ceiling' ? 0xb08cff : 0xffd76a;
-    const pts = plane.polygon.map(pt => new THREE.Vector3(pt.x, pt.y, pt.z).applyMatrix4(m));
     pts.push(pts[0]);
     const g = new THREE.BufferGeometry().setFromPoints(pts);
     _roomPlanes.add(new THREE.Line(g, new THREE.LineBasicMaterial(
       { color: col, transparent: true, opacity: 0.85 })));
   }
   window._roomTally = tally;
-  if (bestWall) _forgeWall = bestWall;   // FORGE: remember the best wall for anchoring the workshop
   if (floorY !== null) _forgeFloorYVal = floorY;   // remember the real floor height for standing DUM-E
+  // CURRENT ROOM = the floor the user is standing on: smallest floor bbox (>=2 m2) that contains the camera XZ.
+  // Falls back to the nearest floor, and finally leaves _forgeRoom null (forge uses its camera-relative default).
+  const cam = renderer.xr.getCamera(); const cp = new THREE.Vector3(); cam.getWorldPosition(cp);
+  let room = null;
+  for (const f of floors) { if (f.area < 2) continue;
+    if (cp.x>=f.minX-0.15 && cp.x<=f.maxX+0.15 && cp.z>=f.minZ-0.15 && cp.z<=f.maxZ+0.15) { if (!room || f.area < room.area) room = f; } }
+  if (!room) for (const f of floors) { if (f.area < 2) continue;
+    const d = Math.hypot((f.minX+f.maxX)/2-cp.x, (f.minZ+f.maxZ)/2-cp.z); if (!room || d < room._d) { room = { ...f, _d: d }; } }
+  if (room) _forgeRoom = { minX:room.minX, maxX:room.maxX, minZ:room.minZ, maxZ:room.maxZ, cx:(room.minX+room.maxX)/2, cz:(room.minZ+room.maxZ)/2, y:room.y, area:room.area };
+  // WALL to anchor to: prefer the largest wall whose footprint sits inside THIS room; else the largest overall.
+  if (_forgeRoom) { const R = _forgeRoom; let bw = null, bwa = 0.5;
+    for (const w of walls) { if (w.cx>=R.minX-0.4 && w.cx<=R.maxX+0.4 && w.cz>=R.minZ-0.4 && w.cz<=R.maxZ+0.4 && w.area>bwa) { bwa = w.area; bw = w; } }
+    _forgeWall = bw ? { m: bw.m, w: bw.w, h: bw.h } : (bestWall || _forgeWall);
+  } else if (bestWall) _forgeWall = bestWall;
   // Finish after ~4s of accumulation -> report + keep the wireframes up
   if (performance.now() - _roomScanT0 > 4000) {
     _roomScan = false;
@@ -8320,22 +8360,31 @@ function _makeForgeFloorGrid() {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(4.2,4.2), new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(cv), transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide }));
   m.rotation.x = -Math.PI/2; return m;
 }
-function _makeForgeEnvironment(floorY, center, fwd, right) {
+function _makeForgeEnvironment(floorY, center, fwd, right, room) {
   const G = new THREE.Group();
-  const grid = _makeForgeFloorGrid(); grid.position.set(center.x, floorY+0.01, center.z); G.add(grid);
-  // ambient rising motes (dust in the projector light)
+  // keep everything inside the CURRENT room (clamp world XZ into the detected floor bounds, with a margin)
+  const clamp = (p) => { if (!room) return p; p.x = Math.max(room.minX+0.2, Math.min(room.maxX-0.2, p.x)); p.z = Math.max(room.minZ+0.2, Math.min(room.maxZ-0.2, p.z)); return p; };
+  // projector floor grid -- centred on the room and SIZED to it (fills THIS room, not the whole house)
+  const gx = room ? room.cx : center.x, gz = room ? room.cz : center.z;
+  const grid = _makeForgeFloorGrid(); grid.position.set(gx, floorY+0.01, gz);
+  if (room) grid.scale.set(Math.max(0.4, Math.min(1.6, (room.maxX-room.minX)/4.2)), Math.max(0.4, Math.min(1.6, (room.maxZ-room.minZ)/4.2)), 1);
+  G.add(grid);
+  // ambient rising motes -- spread across the room (clamped) rather than a fixed 3.4m box
+  const spX = room ? Math.min(3.4, room.maxX-room.minX) : 3.4, spZ = room ? Math.min(3.4, room.maxZ-room.minZ) : 3.4;
   const N=140, mp=new Float32Array(N*3), mv=new Float32Array(N);
-  for(let i=0;i<N;i++){ mp[i*3]=center.x+(Math.random()-0.5)*3.4; mp[i*3+1]=floorY+Math.random()*2.3; mp[i*3+2]=center.z+(Math.random()-0.5)*3.4; mv[i]=0.08+Math.random()*0.22; }
+  for(let i=0;i<N;i++){ mp[i*3]=gx+(Math.random()-0.5)*spX; mp[i*3+1]=floorY+Math.random()*2.3; mp[i*3+2]=gz+(Math.random()-0.5)*spZ; mv[i]=0.08+Math.random()*0.22; }
   const mg=new THREE.BufferGeometry(); mg.setAttribute('position', new THREE.BufferAttribute(mp,3));
   const motes=new THREE.Points(mg, new THREE.PointsMaterial({ color:0x9fe8ff, size:0.011, transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, depthWrite:false })); G.add(motes);
-  // Hall of Armor -- a row of glowing pillars + holo schematic frames behind the bench
-  for(let i=0;i<5;i++){ const off=(i-2)*0.62, pos=center.clone().addScaledVector(right,off).addScaledVector(fwd,-1.05);
+  // Hall of Armor -- a row of glowing pillars + holo frames behind the bench, its width FIT to the room
+  const hallStep = (room ? Math.min(2.48, Math.max(1.2, (room.maxX-room.minX)-0.8)) : 2.48) / 4;
+  for(let i=0;i<5;i++){ const off=(i-2)*hallStep, pos=clamp(center.clone().addScaledVector(right,off).addScaledVector(fwd,-1.05));
     const pil=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,1.9,8), new THREE.MeshBasicMaterial({ color:0x7fefff, transparent:true, opacity:0.22, blending:THREE.AdditiveBlending, depthWrite:false }));
     pil.position.set(pos.x, floorY+0.95, pos.z); G.add(pil);
     const fr=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.42,0.92)), new THREE.LineBasicMaterial({ color:0x7fefff, transparent:true, opacity:0.4, blending:THREE.AdditiveBlending, depthWrite:false }));
     fr.position.set(pos.x, floorY+1.35, pos.z); fr.lookAt(center.x, floorY+1.35, center.z); G.add(fr); }
-  // volumetric light columns (ceiling projectors)
-  for(let i=0;i<3;i++){ const off=(i-1)*1.15, pos=center.clone().addScaledVector(right,off);
+  // volumetric light columns (ceiling projectors) -- also fit + clamped to the room
+  const colStep = (room ? Math.min(2.3, Math.max(1.0, (room.maxX-room.minX)-0.8)) : 2.3) / 2;
+  for(let i=0;i<3;i++){ const off=(i-1)*colStep, pos=clamp(center.clone().addScaledVector(right,off));
     const col=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.05,2.5,20,1,true), new THREE.MeshBasicMaterial({ color:0x4fd8ff, transparent:true, opacity:0.045, side:THREE.DoubleSide, blending:THREE.AdditiveBlending, depthWrite:false }));
     col.position.set(pos.x, floorY+1.65, pos.z); G.add(col); }
   G.userData = { motes, floorY, top: floorY+2.3, mv };
@@ -8456,16 +8505,23 @@ function _dumeNavStep(u) {
   nav.arriveT = (nav.arriveT || 0) + 0.016;   // ARRIVED
   if (nav.state === 'wander') { nav.state = 'idle'; return false; }
   if (nav.state === 'goModel') {
-    if (nav.arriveT < 0.6) { u.action = 'reach'; u.actionT0 = performance.now(); return true; }   // bend/reach to grab
-    if (!nav.carried && typeof root !== 'undefined' && meshData.length) { try { u.head.attach(root); nav.carried = root; } catch(_){} }
-    nav.state = 'return'; nav.arriveT = 0; try { window.speak && window.speak('Got it, sir.', 'normal'); } catch(_){}
+    // REACH + GRIP: hold a reach-DOWN pose (claw open) ~1.1s while the boom bends to the model, then the claw
+    // closes and SEIZES it. Attaching keeps world transform, so we then snap the model to the claw grip point
+    // -- otherwise it stays welded wherever it was (the "connected to a random part of the body" bug).
+    u.gripPhase = 'reach';
+    if (nav.arriveT < 1.1) return true;   // _updateForge drives the bend + open claw during this window
+    u.gripPhase = 'grip';
+    if (!nav.carried && typeof root !== 'undefined' && meshData.length) {
+      try { u.head.attach(root); root.position.set(0, 0.11, 0.05); root.userData._vel = null; nav.carried = root; } catch(_){}   // HELD in the claw
+    }
+    nav.state = 'return'; nav.arriveT = 0; u.gripPhase = 'carry'; try { window.speak && window.speak('Got it, sir.', 'normal'); } catch(_){}
     return true;
   }
   if (nav.state === 'return') {
     if (nav.carried) { try { scene.attach(nav.carried); const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
         _dumeFwd.set(0,0,-1).applyQuaternion(cam.quaternion); _dumeFwd.y=0; _dumeFwd.normalize();
         nav.carried.position.copy(_dumeCam).addScaledVector(_dumeFwd, 0.5); nav.carried.position.y = _dumeCam.y - 0.25; } catch(_){}
-      nav.carried = null; try { window.speak && window.speak(pick(['There you go, sir.','For you, sir.']), 'confident'); } catch(_){} }
+      nav.carried = null; u.gripPhase = null; try { window.speak && window.speak(pick(['There you go, sir.','For you, sir.']), 'confident'); } catch(_){} }
     nav.state = 'goHome'; const h = nav.home || arm.position; nav.tx = h.x; nav.tz = h.z; nav.arriveT = 0; return true;
   }
   if (nav.state === 'goHome') { nav.state = 'idle'; return false; }
@@ -8513,6 +8569,13 @@ function _updateForge() {
   else if (u.action === 'clear') { const e = Math.sin(Math.min(1,aT)*Math.PI); s1 = u.s1Base - 0.3*e; }
   else if (u.action === 'spray') { clawOpen = 0.6;
     if (aT < 1.0 && Math.random() < 0.6) { try { u.head.getWorldPosition(_dumeTmp); _dumeTmp.z += 0.05; window.__xrParticleBurst && window.__xrParticleBurst(_dumeTmp); } catch(_){} } }
+  // FETCH GRIP POSE overrides the idle sway ONLY during a "bring this to me" (gripPhase set) -- so this can't
+  // disturb DUM-E's normal idle. reach/grip = bend the boom DOWN-forward with the claw open, then closed;
+  // carry = hold it up and in while wheeling back. Angles clamped; hydraulics (seg1/seg2) read as the motion.
+  if (u.gripPhase === 'reach' || u.gripPhase === 'grip') {
+    const e = Math.min(1, (u.nav.arriveT || 0) / 0.6);   // eases in over the first ~0.6s after DUM-E arrives
+    s1 = u.s1Base + 0.7*e; s2 = u.s2Base - 0.55*e; headX = 0.42*e; clawOpen = (u.gripPhase === 'reach') ? 0.7 : 0;
+  } else if (u.gripPhase === 'carry') { s1 = u.s1Base + 0.25; s2 = u.s2Base + 0.15; headX = -0.1; clawOpen = 0; }
   u.seg1.rotation.z = s1; u.seg2.rotation.z = s2; u.head.rotation.x = headX;
   for (const c of u.claw) { c.j.rotation.z = c.base.z * (1 - clawOpen*1.5); c.j.rotation.x = c.base.x * (1 - clawOpen*1.5); }
   u.eye.material.opacity = 0.7 + 0.3*Math.sin(u.t*3);   // camera-eye glow
@@ -8725,20 +8788,26 @@ window.__xrForge = function (show) {
     const bfwd = new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion); bfwd.y = 0; bfwd.normalize();
     const bright = new THREE.Vector3(1,0,0).applyQuaternion(cam.quaternion); bright.y = 0; bright.normalize();
     const armFloor = (typeof _forgeFloorY === 'function' ? _forgeFloorY(camPos) : camPos.y - 1.55);   // BASE ON THE FLOOR
+    // KEEP IN THIS ROOM: clamp XZ into the detected current-room floor bounds (with a margin) so nothing spills next door.
+    const _inRoom = (p, margin) => { if (!_forgeRoom) return p; const R = _forgeRoom, m = margin==null?0.4:margin;
+      p.x = Math.max(R.minX+m, Math.min(R.maxX-m, p.x)); p.z = Math.max(R.minZ+m, Math.min(R.maxZ-m, p.z)); return p; };
     const dumeSpot = camPos.clone().addScaledVector(bfwd, 1.1).addScaledVector(bright, 0.75); dumeSpot.y = armFloor;   // his parking spot, front-right of the bench
-    // ROLL-IN: start ~2m off to the side and roll into place (wheels turning) when the forge deploys
-    arm.position.copy(dumeSpot).addScaledVector(bright, 2.2); arm.position.y = armFloor;
+    _inRoom(dumeSpot, 0.45);
+    // ROLL-IN: start off to the side and roll into place (wheels turning) when the forge deploys -- but stay in-room
+    arm.position.copy(dumeSpot).addScaledVector(bright, 2.2); arm.position.y = armFloor; _inRoom(arm.position, 0.3);
     arm.rotation.y = Math.atan2(camPos.x - arm.position.x, camPos.z - arm.position.z);
     scene.add(arm);
     arm.userData.nav.home = dumeSpot.clone(); arm.userData.nav.tx = dumeSpot.x; arm.userData.nav.tz = dumeSpot.z; arm.userData.nav.state = 'wander';   // rolls in to the spot
     // WORKBENCH: centre it in the forge, at a comfortable hand-height reach (user request)
     try { if (_workbench) { const bc = camPos.clone().addScaledVector(bfwd, 0.7); _workbench.position.set(bc.x, camPos.y - 0.5, bc.z);
+      const dFace = new THREE.Vector3().subVectors(bc, camPos); dFace.y = 0; dFace.normalize();   // yaw the L-desk to face the user
+      _workbench.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), dFace, up));   // its +Z front + props now align
       try { localStorage.setItem('benchPos', JSON.stringify(_workbench.position.toArray())); } catch(_){}
       if (window._h3d && window._h3d.cur) _placeRootOnBench(); } } catch(_){}
     // Stark-lab ENVIRONMENT: projector floor-grid + motes + Hall of Armor + light columns around the bench
     let env = null;
     try { const floorY = arm.position.y, benchCtr = camPos.clone().addScaledVector(bfwd, 0.95);
-      env = _makeForgeEnvironment(floorY, benchCtr, bfwd, bright); scene.add(env); } catch(_){}
+      env = _makeForgeEnvironment(floorY, benchCtr, bfwd, bright, _forgeRoom); scene.add(env); } catch(_){}
     // PREMIUM PROP TABLEAU: iconic Stark relics on the bench top, facing the user (arc reactor centre,
     // faceplate cradle left, repulsor gauntlet right, exploded holo schematic floating above).
     let props = null;
@@ -9087,9 +9156,11 @@ function _detectSqueezeShrink() {
   }
 }
 
-// #8 SNAP-FINGERS CYCLE -- middle+thumb snap detected via rapid velocity -> next model
+// #8 SNAP-FINGERS CYCLE -- DISABLED. A middle+thumb flick was switching your hologram to the next model,
+// and it fired on the tiniest hand motion. Model switching is VOICE-ONLY now ("next model" / "show me X").
 let _lastSnapT = 0;
 function _detectSnapCycle() {
+  return;   // voice-only: no gesture-driven model switching (was far too twitchy)
   if (_grip.mode !== 'none' || _drawMode) return;   // don't cycle models while grabbing/drawing
   if (performance.now() - _lastSnapT < 800) return;
   if (window._pttActive) return;   // don't confuse a push-to-talk (middle+thumb hold) release with a snap
@@ -9118,9 +9189,11 @@ function _detectSnapCycle() {
   }
 }
 
-// #9 WAVE-HAND CYCLE -- flat wave motion switches workspace layout (spawns rotation)
+// #9 WAVE-HAND CYCLE -- DISABLED. A flat wave was rotating your spawned models around you on any casual
+// hand wave. Rearranging the workspace is voice-only now, so waving/gesturing never moves your holograms.
 let _waveTracker = { start: 0, samples: [] };
 function _detectWaveCycle() {
+  return;   // voice-only: no gesture-driven spawn rearrangement
   const rh = _xrHands[1]; if (!rh) return;
   const wr = _jt(rh, 'wrist'); if (!wr) return;
   if (_handOpenness(rh) < 0.7) { _waveTracker.samples.length = 0; return; }
