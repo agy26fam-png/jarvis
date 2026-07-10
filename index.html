@@ -4437,7 +4437,7 @@ function ingestUtterance(text,direct){
   // "bigger", "spin"...). A verb whitelist -- NOT a blanket bypass -- so whisper noise
   // hallucinations still can't run arbitrary commands (the old bug).
   const holoFollow=(window._h3d&&window._h3d.cur)&&
-    /(spin|rotate|freeze|stop spinning|explode|reassemble|zoom|closer|further|bigger|smaller|scale|isolate|show all|dismiss|next part|previous part|labels?|x-?ray|blueprint|workshop|measure|slice|unslice|materialize|recolou?r|hologram list)/.test(low);
+    /(spin|rotate|freeze|stop spinning|explode|reassemble|zoom|closer|further|bigger|smaller|scale|isolate|show all|dismiss|next part|previous part|labels?|x-?ray|blueprint|workshop|measure|slice|unslice|recolou?r|hologram list)/.test(low);
   if(!wakeHit && !conversing && !holoFollow)return;
   if(!wakeHit && !holoFollow && low.split(/\s+/).length<2)return;   // 1-word non-wake "commands" = junk
   awake=true; captured=whole; interimNow='';
@@ -9466,23 +9466,26 @@ function _positionReticle() {
 const _hudCanvas = document.createElement('canvas');
 _hudCanvas.width = 1024; _hudCanvas.height = 640;
 const _hudTex = new THREE.CanvasTexture(_hudCanvas);
-// CURVED HUD -- Quest 2's passthrough view is ~96 deg per eye (Meta spec); a flat billboard stretches
-// visibly near the edges of a FOV that wide. Meta's own system UI (Dash/universal menu) wraps around
-// the wearer on a cylindrical surface instead of a flat plane, which is why straight menu edges stay
-// straight all the way to your periphery. We do the same: bend the plane along a circular arc (constant
-// radius from the eye) instead of a flat tangent plane, by pulling edge vertices toward the viewer.
-function _curvedHudGeometry(w, h, r, segX) {
-  const geo = new THREE.PlaneGeometry(w, h, segX, 1);
-  const pos = geo.attributes.position;
+// CURVED HUD -- an EYE-CENTRED DOME. The Quest 2 renders ~97 deg H x 93 deg V per eye (Meta spec), wide
+// enough that a flat billboard visibly stretches at the corners. Meta's guidance for a wide panel: "a
+// slight curvature keeps its edges at an equal distance from the viewer, making it easier to focus." So we
+// wrap the visor onto a sphere centred on the eye -- every vertex the SAME distance from the eye -- which
+// curves ALL FOUR edges (left/right AND top/bottom, per user request), not just a horizontal cylinder.
+// The fit sliders scale the plane's x/y but NOT its z, so we bake the z-sag in WORLD metres for the CURRENT
+// fit (eye distance D + per-axis scale sx,sy):  sag = D - sqrt(D^2 - (sx*x)^2 - (sy*y)^2).  With that sag a
+// vertex ends up exactly D from the eye: sqrt((sx*x)^2 + (sy*y)^2 + (D-sag)^2) === D. Rebuilt on every fit
+// change so the dome stays exact. Base geometry is flat; _rebuildHudDome() domes it (called by _applyHudScale).
+const _HUD_SEGX = 28, _HUD_SEGY = 20;
+function _rebuildHudDome() {
+  const pos = _hudPlane.geometry.attributes.position;
+  const D = _hudDist, sx = _hudScaleX, sy = _hudScaleY;
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    pos.setZ(i, pos.getZ(i) + (r - Math.sqrt(Math.max(0, r * r - x * x))));   // circular sag, edges pulled toward the eye
+    const wx = pos.getX(i) * sx, wy = pos.getY(i) * sy;   // world lateral offset from the visor centre
+    pos.setZ(i, D - Math.sqrt(Math.max(0, D * D - wx * wx - wy * wy)));   // pull onto the eye-centred sphere
   }
   pos.needsUpdate = true;
-  return geo;
 }
-const _HUD_CURVE_R = 1.35;   // curvature radius in the plane's own local units -- gentle wrap, not a full dome
-const _hudPlane = new THREE.Mesh(_curvedHudGeometry(1.6, 1.0, _HUD_CURVE_R, 28),
+const _hudPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.0, _HUD_SEGX, _HUD_SEGY),
   new THREE.MeshBasicMaterial({ map: _hudTex, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
 _hudPlane.renderOrder = 998; _hudPlane.frustumCulled = false; _hudPlane.visible = false;
 // FIT-TO-VIEW calibration (persisted). Default a touch inside the FOV so the frame is visible, then the user
@@ -9503,6 +9506,7 @@ try {
 } catch(_){}
 function _applyHudScale() {
   _hudPlane.scale.set(_hudScaleX, _hudScaleY, 1);
+  _rebuildHudDome();   // re-bake the eye-centred dome for the new fit so edges stay equidistant
   try { localStorage.setItem('hudScaleX',String(_hudScaleX)); localStorage.setItem('hudScaleY',String(_hudScaleY)); localStorage.setItem('hudDist',String(_hudDist)); } catch(_){}
 }
 _applyHudScale();
@@ -10049,15 +10053,10 @@ function _updateSuit() {
   root.quaternion.copy(cam.quaternion);
 }
 
-// #65 BLUEPRINT REVEAL -- schematic version appears alongside, both animate together
+// #65 BLUEPRINT REVEAL -- toggles the schematic look on the active model. (It used to also spawn a second
+// copy alongside via materialize; that copy option was removed as buggy, so this is now a plain toggle.)
 window.__xrBlueprintReveal = function() {
   window.__xrToggleBlueprint();
-  if (window.__h3dMaterialize) {
-    const s = window.__h3dMaterialize();
-    if (s) s.position.x += 1.5;
-  }
-  // Undo blueprint on the newly-materialized one so the second copy stays normal color
-  setTimeout(() => window.__xrToggleBlueprint(), 100);
 };
 
 // #66 DAMAGE ASSESSMENT -- red glow patches at impact zones (drawn via #1 trails)
@@ -10597,36 +10596,13 @@ canvas.addEventListener('click', (e) => {
   const idx = meshData.findIndex(md => md.hull === hits[0].object);
   if (idx >= 0) selectPart(idx);
 });
-// MULTI-HOLOGRAM: "materialize" freezes the current model as a static copy in the scene, then
-// the active workspace (root + meshData) is empty and ready for another summon. Stark-style
-// workbench with many holograms hovering at once.
+// COPY / MATERIALIZE -- REMOVED (user: "completely remove the copy option in AR mode, way too buggy").
+// It used to freeze the active model into a static copy and EMPTY the workspace, but those copies couldn't
+// rehydrate on reload and left the workspace blank -- the buggy behaviour. Now a no-op returning null, which
+// neutralises EVERY entry point at once (voice, blueprint-reveal, redo, any future button). _spawns is kept
+// because the useful part-popouts ("show me the wheel") and clones still live in it and still work.
 const _spawns = [];
-window.__h3dMaterialize = function() {
-  if (!meshData.length) return null;
-  const spawn = new THREE.Group();
-  spawn.name = 'holo_' + Date.now();
-  root.updateWorldMatrix(true, false);
-  spawn.position.setFromMatrixPosition(root.matrixWorld);
-  spawn.quaternion.setFromRotationMatrix(root.matrixWorld);
-  spawn.scale.copy(root.scale);
-  // Each part becomes its OWN subgroup so it can be pluck-grabbed later.
-  for (const md of meshData) {
-    const part = new THREE.Group();
-    part.userData._isSpawnPart = true;
-    if (md.hull) part.add(md.hull.clone());
-    if (md.lines && md.lines !== md.hull) part.add(md.lines.clone());
-    spawn.add(part);
-  }
-  scene.add(spawn);
-  _spawns.push(spawn);
-  meshData = [];
-  root.position.set(0, 0, 0);
-  root.quaternion.identity();
-  root.scale.setScalar(1);
-  currentUrl = null;
-  if (window._h3d) window._h3d.cur = null;
-  return spawn;
-};
+window.__h3dMaterialize = function() { return null; };
 window.__h3dDismissSpawns = function() {
   for (const s of _spawns) {
     s.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
