@@ -3763,6 +3763,7 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
       if (/\b(stop following|quit following|at ease|as you were)\b/.test(rest)) { _dz(() => window.__xrDumeFollow && window.__xrDumeFollow(false)); return; }
       if (/\b(come (?:back|here)|come to me|return to me|back to me|get over here)\b/.test(rest)) { _dz(window.__xrDumeCome); return; }
       if (/\b(stay|wait|hold (?:still|position|it)|stay (?:there|here|put)|freeze|don'?t move)\b/.test(rest)) { _dz(window.__xrDumeStay); return; }
+      if (/\b(go to the corner|in the corner|bad dum-?e|time ?out|think about what you'?ve done|you'?re in trouble)\b/.test(rest)) { _dz(window.__xrDumeCorner); return; }
       if (/\b(go home|return home|back to your (?:spot|corner|post|station)|dock|go to your corner)\b/.test(rest)) { _dz(window.__xrDumeHome); return; }
       if (/\b(power down|shut down|shutdown|go to sleep|power off|deactivate|stand down|sleep now)\b/.test(rest)) { _dz(() => window.__xrDume && window.__xrDume('powerdown')); return; }
       if (/\b(power up|wake up|power on|activate|boot up|rise and shine)\b/.test(rest)) { _dz(() => window.__xrDume && window.__xrDume('powerup')); return; }
@@ -3772,6 +3773,10 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
         : /\b(shake your head|say no|disagree|bad (?:boy|dum-?e))\b/.test(rest) ? 'shake'
         : /\b(dance|celebrate|spin|do a spin|party)\b/.test(rest) ? 'dance'
         : /\b(tilt|curious|look confused|what is it)\b/.test(rest) ? 'tilt'
+        : /\b(look (?:here|at this|at that|at it)|check this out|see this)\b/.test(rest) ? 'look'
+        : /\b(fist bump|pound it|bump it|give me (?:a bump|a five|five)|high ?five)\b/.test(rest) ? 'bump'
+        : /\b(lights? off|light off|kill the light|that'?s enough light)\b/.test(rest) ? 'lightoff'
+        : /\b(hold the light|light my way|lights? (?:on|up)|shine|illuminate|torch)\b/.test(rest) ? 'light'
         : /\bpoint|look|show me\b/.test(rest) ? 'point'
         : /\bfire|extinguish|put out|spray|flame\b/.test(rest) ? 'spray'
         : 'wave';   // bare "dum-e" or a greeting -> wave hello
@@ -8636,6 +8641,10 @@ window.__xrDume = function (cmd) {   // DUM-E's brain: perform a real action + t
     else if (cmd === 'shake') { window.speak && window.speak(pick(['No, sir.','I would not advise it, sir.']), 'normal'); }
     else if (cmd === 'tilt')  { window.speak && window.speak(pick(['Sir?','Hm?']), 'normal'); }
     else if (cmd === 'dance') { window.speak && window.speak(pick(['For you, sir.','With pleasure, sir.']), 'confident'); }
+    else if (cmd === 'look')  { try { const p=_dumeFloorRay(); (u.lookTarget||(u.lookTarget=new THREE.Vector3())).set(p.x, p.y+0.8, p.z); } catch(_){} window.speak && window.speak(pick(['Looking, sir.','I see it, sir.','Right there, sir.']), 'normal'); }
+    else if (cmd === 'bump')  { u._bumped=false; window.speak && window.speak(pick(['Pow.','Nice one, sir.','Boop.']), 'confident'); }
+    else if (cmd === 'light') { u.lightOn=true; window.speak && window.speak(pick(['Lighting the way, sir.','On it, sir.']), 'normal'); }
+    else if (cmd === 'lightoff'){ u.lightOn=false; u.action=null; window.speak && window.speak('Lights off, sir.', 'normal'); }
     else if (cmd === 'powerdown') { u.powered = false; u.action = null; window.speak && window.speak('Powering down, sir.', 'normal'); }
     else if (cmd === 'powerup')   { u.powered = true;  u.action = null; window.speak && window.speak('Back online, sir.', 'confident'); }
     window.tone && window.tone(880, 0.06, 'sine', 0.05);
@@ -8739,7 +8748,7 @@ function _dumeFloorRay() {   // raycast the pointing hand (R then L, else head g
 function _dumeReady(sayIt) {   // guard shared by every spatial command
   if (!_forge || !_forge.arm) { if (sayIt) try { window.speak && window.speak('The forge is offline, sir.', 'normal'); } catch(_){} return null; }
   const u = _forge.arm.userData; if (!u.nav.home) u.nav.home = _forge.arm.position.clone();
-  u.powered = true;   // any order wakes him
+  u.powered = true; u.sulk = false;   // any order wakes him (and snaps him out of a sulk)
   return u;
 }
 window.__xrDumeGo = function () {   // "dum-e, go over there" -> roll to where you point + WAIT there
@@ -8770,6 +8779,16 @@ window.__xrDumeHome = function () {   // "go home / back to your corner / dock"
   nav.tx = h.x; nav.tz = h.z; nav.state = 'goHome'; nav.arriveT = 0; nav.marked = false;
   if (_dumeMark) _dumeMark.visible = false;
   try { window.speak && window.speak(pick(['Returning to my post, sir.','Docking, sir.']), 'normal'); } catch(_){}
+  return true;
+};
+window.__xrDumeCorner = function () {   // "bad dum-e / go to the corner" -> sulk off to the nearest room corner
+  const u = _dumeReady(true); if (!u) return false; const nav = u.nav, R = _forgeRoom, a = _forge.arm.position;
+  if (R) { nav.tx = (Math.abs(a.x - R.minX) < Math.abs(a.x - R.maxX)) ? R.minX + 0.55 : R.maxX - 0.55;
+           nav.tz = (Math.abs(a.z - R.minZ) < Math.abs(a.z - R.maxZ)) ? R.minZ + 0.55 : R.maxZ - 0.55; }
+  else { nav.tx = a.x; nav.tz = a.z - 1.6; }   // no room scanned -> just back away
+  nav.state = 'goPoint'; nav.arriveT = 0; nav.marked = false; u.sulk = true;
+  if (_dumeMark) _dumeMark.visible = false;
+  try { window.speak && window.speak(pick(['Sorry, sir.','Yes, sir...','Understood, sir.']), 'normal'); } catch(_){}
   return true;
 };
 // ============================================================================================
@@ -8909,6 +8928,7 @@ function _updateForge() {
     s2 = u.s2Base - 0.34 - _br*0.09 + Math.sin(u.t*0.37+0.6)*0.05;  // elbow curls the forearm in/down, counter-breathes
     headX = 0.16 + Math.sin(u.t*0.33)*0.11;                         // head hangs slightly + slow scan (looking around)
   }
+  if (u.sulk) { s1 = u.s1Base - 0.45; s2 = u.s2Base - 0.55; headX = 0.42; clawOpen = 0; }   // scolded -> sulking, boom hung low
   // MODEL TRACKING: the TURRET yaws toward the active hologram + the head tilts to its height (not while carrying it)
   try {
     if (!u.nav.carried && window._h3d && window._h3d.cur && typeof root !== 'undefined' && root.parent) {
@@ -8930,6 +8950,30 @@ function _updateForge() {
   else if (u.action === 'shake') { u.turn.rotation.y = Math.sin(aT*8)*0.34; headX = 0.10; }                // NO -- turret shakes
   else if (u.action === 'tilt')  { headX = -0.34; s1 = u.s1Base + 0.14; }                                  // curious cock of the head
   else if (u.action === 'dance') { u.turn.rotation.y += 0.15; s2 = u.s2Base + Math.sin(aT*8)*0.34; headX = Math.sin(aT*6)*0.2; clawOpen = 0.4; }  // celebrate / spin
+  else if (u.action === 'look')  {   // orient toward the spot you pointed at + lean in (attention)
+    s1 = u.s1Base + 0.10; clawOpen = 0.25;
+    if (u.lookTarget) { try { _forge.arm.getWorldPosition(_dumeTmp2);
+      let ly = Math.atan2(u.lookTarget.x - _dumeTmp2.x, u.lookTarget.z - _dumeTmp2.z) - _forge.arm.rotation.y;
+      while (ly > Math.PI) ly -= 2*Math.PI; while (ly < -Math.PI) ly += 2*Math.PI;
+      u.turn.rotation.y += (ly - u.turn.rotation.y) * 0.12;
+      headX = Math.max(-0.4, Math.min(0.45, -(u.lookTarget.y - _dumeTmp2.y - 1.3) * 0.22)); } catch(_){} } }
+  else if (u.action === 'bump')  {   // reach the claw out toward you, then snap it shut = fist bump
+    const e = Math.sin(Math.min(1, aT) * Math.PI); s1 = u.s1Base + 0.30 + 0.25*e; s2 = u.s2Base + 0.20 + 0.20*e; headX = -0.05;
+    clawOpen = aT < 0.66 ? 0.6 : 0;
+    if (aT >= 0.66 && !u._bumped) { u._bumped = true; try { window.tone && window.tone(320, 0.08, 'sine', 0.06); u.head.getWorldPosition(_dumeTmp); window.__xrParticleBurst && window.__xrParticleBurst(_dumeTmp); } catch(_){} } }
+  // HOLD THE LIGHT: raise the boom, open the claw, aim a soft light cone at you (his classic "a little to the
+  // left" bit). Persistent (u.lightOn) until "lights off"; skipped while fetching.
+  if (u.lightOn && !u.gripPhase) {
+    if (!u.lightCone) { const cone = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.7, 20, 1, true),
+      new THREE.MeshBasicMaterial({ color:0xdff4ff, transparent:true, opacity:0.13, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide }));
+      cone.rotation.x = -Math.PI/2; cone.position.set(0, 0.05, 0.95); u.head.add(cone); u.lightCone = cone; }
+    u.lightCone.visible = true;
+    s1 = u.s1Base + 0.35; s2 = u.s2Base + 0.30; clawOpen = 0.6;
+    try { const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam); _forge.arm.getWorldPosition(_dumeTmp2);
+      let ly = Math.atan2(_dumeCam.x - _dumeTmp2.x, _dumeCam.z - _dumeTmp2.z) - _forge.arm.rotation.y;
+      while (ly > Math.PI) ly -= 2*Math.PI; while (ly < -Math.PI) ly += 2*Math.PI;
+      u.turn.rotation.y += (ly - u.turn.rotation.y) * 0.08; headX = -0.08; } catch(_){}
+  } else if (u.lightCone) u.lightCone.visible = false;
   // FETCH GRIP POSE overrides the idle sway ONLY during a "bring this to me" (gripPhase set) -- so this can't
   // disturb DUM-E's normal idle. reach/grip = bend the boom DOWN-forward with the claw open, then closed;
   // carry = hold it up and in while wheeling back. Angles clamped; hydraulics (seg1/seg2) read as the motion.
@@ -8959,7 +9003,7 @@ function _updateForge() {
   for (const c of u.claw) { c.j.rotation.z = c.base.z * (1 - clawOpen*1.5); c.j.rotation.x = c.base.x * (1 - clawOpen*1.5); }
   // RECENTRE THE TURRET when idle: shake/dance twist u.turn and the model-tracker only corrects it while a
   // hologram is up, so with no model the yaw would otherwise stay stuck off-axis forever.
-  if (!u.action) { const _trk = !u.nav.carried && window._h3d && window._h3d.cur && typeof root !== 'undefined' && root && root.parent;
+  if (!u.action && !u.lightOn) { const _trk = !u.nav.carried && window._h3d && window._h3d.cur && typeof root !== 'undefined' && root && root.parent;
     if (!_trk) u.turn.rotation.y += (0 - u.turn.rotation.y) * 0.05; }
   u.eye.material.opacity = (u.powered === false ? 0.12 : 0.7 + 0.3*Math.sin(u.t*3));   // camera-eye glow (dims when off)
   // destination marker: pulse it while he's travelling to / waiting at a "go over there" spot, else hide
