@@ -4387,7 +4387,7 @@ function finishCommand(){
   if(!awake)return;awake=false;clearTimeout(pauseT);clearTimeout(specTimer);
   const whole=(captured+' '+interimNow).trim().toLowerCase();captured='';interimNow='';
   const cmd=(WAKE.test(whole)?(parseWake(whole)||''):whole).trim();   // wake word OR a free conversation follow-up
-  if(cmd)handle(cmd);else speak('Yes, sir?');}
+  if(cmd){handle(cmd);try{window._dumeReact&&window._dumeReact('success');}catch(_){}}else speak('Yes, sir?');}
 function startRec(){
   if(!SR){startWhisperMic();return;}   // Quest / any browser without SpeechRecognition -> Whisper STT
   if(listening)return;
@@ -8791,6 +8791,21 @@ window.__xrDumeCorner = function () {   // "bad dum-e / go to the corner" -> sul
   try { window.speak && window.speak(pick(['Sorry, sir.','Yes, sir...','Understood, sir.']), 'normal'); } catch(_){}
   return true;
 };
+// REACTIVE GESTURES: DUM-E responds to what happens (not just to being told). Gestures only -- he
+// doesn't SPEAK here (Jarvis already replied). Debounced so he acknowledges without spamming.
+let _dumeReactT = 0;
+window._dumeReact = function (event) {
+  if (!_forge || !_forge.arm) return;                       // only when he's equipped/present
+  const u = _forge.arm.userData;
+  if (u.action || u.gripPhase || u.nav.state === 'goModel' || u.sulk) return;   // busy -> don't interrupt
+  const now = performance.now();
+  const gesture = (g) => { u.action = g; u.actionT0 = now; try { window.tone && window.tone(880, 0.05, 'sine', 0.03); } catch(_){} };
+  if (event === 'success') {
+    if (now - _dumeReactT > 12000) { _dumeReactT = now; gesture('dance'); }   // a full celebrate now and then
+    else if (now - (u._nodT || 0) > 3000) { u._nodT = now; gesture('nod'); }  // otherwise a quick nod of acknowledgement
+  } else if (event === 'spawn') { gesture('reach'); }
+  else if (event === 'fail') { gesture('shake'); }
+};
 // ============================================================================================
 // HALL OF ARMOR -- floor-anchored shallow arc of self-lit cyan-hologram figures on lit stands.
 // CC0 / public-domain KayKit character GLBs recoloured to additive cyan holograms; figures are STATIC
@@ -11686,6 +11701,47 @@ function applyExplode(amount) {
     md.lines.position.copy(md.hull.position);
   }
 }
+// AR LIVE MODEL CONTROL: in immersive mode the render loop returns before the desktop model-animation,
+// so nothing applied _h3d (explode/spin/views) to the real meshes -- the model was a frozen grab target.
+// Here we run it in AR: rotation goes on `root` (no camera-orbit in AR); explode moves the parts inside
+// root; and a one-hand PINCH within the model's radius rotates it by drag, exactly like the globe.
+let _modelPinchPrev = null;
+function _updateXRModel() {
+  const _h3d = window._h3d;
+  if (!_h3d || !_h3d.cur || typeof root === 'undefined' || !meshData.length) return;
+  // root is "owned" (don't fight it) while a fist drags it OR while DUM-E is carrying it in his claw
+  const owned = (_grip.target === root) || (_forge && _forge.arm && _forge.arm.userData.nav.carried === root);
+  let rotating = false;
+  if (!owned) {
+    root.getWorldPosition(_c); _c.y += (window._modelHalfHeight || modelSize*0.2) * root.scale.y;   // model centre
+    const rad = Math.max(0.30, (window._modelHalfHeight || modelSize*0.2) * root.scale.y * 1.6 + 0.14);
+    for (let h = 0; h < 2; h++) {
+      const hand = _xrHands[h]; if (!hand) continue;
+      if (_handClosed(hand)) continue;   // a fist is the MOVE channel; pinch is the ROTATE channel
+      const pp = _pinchPoint(hand);
+      if (pp && pp.pinching && pp.p.distanceTo(_c) < rad) {
+        if (_modelPinchPrev) {   // DRAG -> turn it (feeds the same _h3d.rotY/rotX the desktop mouse uses)
+          const dx = pp.p.x - _modelPinchPrev.x, dy = pp.p.y - _modelPinchPrev.y, mag = Math.hypot(dx, dy);
+          if (mag > 0.0004 && mag < 0.06) {   // deadzone kills idle jitter; jump-clamp skips a tracking pop
+            _h3d.rotY += dx * 6;   // horizontal drag spins it (flip the sign if it turns backwards)
+            _h3d.rotX += dy * 6;   // vertical drag tilts it
+            _h3d.autoRot = false;
+          }
+        }
+        _modelPinchPrev = pp.p.clone(); rotating = true; break;
+      }
+    }
+  }
+  if (!rotating) _modelPinchPrev = null;
+  if (_h3d.autoRot && !owned && !rotating) _h3d.rotY += 0.005 * (_h3d.rotSpeed || 1);   // idle auto-spin
+  // SMOOTH EXPLODE (parts move within root -> works even while it's grabbed/carried)
+  if (Math.abs((_h3d.explode||0) - _h3d.explodeT) > 0.0005) {
+    _h3d.explode = (_h3d.explode||0) + (_h3d.explodeT - (_h3d.explode||0)) * 0.25;
+    if (Math.abs(_h3d.explode - _h3d.explodeT) < 0.005) _h3d.explode = _h3d.explodeT;
+    applyExplode(_h3d.explode);
+  }
+  if (!owned) { root.rotation.y = _h3d.rotY; root.rotation.x = Math.max(-1.45, Math.min(1.45, _h3d.rotX)); }
+}
 
 // Dirty-flag render: only call .render() when something is actually changing.
 // Idle hologram (no rotation, no zoom, no explode in motion) = ~0% GPU.
@@ -11706,6 +11762,7 @@ renderer.setAnimationLoop((time) => {
     } catch(_){}
     _updateFingertips();   // 1e-filter both index tips ONCE -> poke/wrist/palm all read the smoothed point
     _updateXRGrab();
+    try { _updateXRModel(); } catch(_){}   // AR: explode/spin/views + one-hand pinch-rotate the model
     try { _slapUpdate(); _coastObjects(); } catch(_){}   // slap-to-knock physics + coast
     try { _updateRipples(); } catch(_){}                  // expand+fade ripple rings (rAF is frozen in XR)
     _updateHandCommands();
