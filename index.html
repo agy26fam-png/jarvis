@@ -7446,7 +7446,7 @@ function _makeWorkbench(desk) {
   topSurf(1.50,0.82, 0, 0);            // MAIN top -- front edge (+Z) toward the user
   topSurf(0.72,1.15, 1.11, -0.165);    // RETURN wing on the RIGHT (+X), running back -> the L
   // FLOOR-STANDING pedestal drawer units: bodies reach the floor; 3 chrome drawer seams on the FRONT (+Z, toward you)
-  const pedestal = (x,z,w) => { box(w,0.60,0.52,x,-(DH-0.12)+0.30,z,0.5);   // body bottom on the floor (y ~ -DH)
+  const pedestal = (x,z,w) => { box(w,0.60,0.52,x,-DH+0.30,z,0.5);   // body: centre -0.42 -> bottom -0.72 sits ON the floor
     for (let i=0;i<3;i++){ const dy=-0.20-i*0.16; box(w*0.9,0.006,0.006,x,dy,z+0.262,0.55,CH); box(0.10,0.022,0.014,x,dy,z+0.265,0.75,CH); } };
   pedestal(-0.55, 0.00, 0.44);         // under the main top (left)
   pedestal( 1.11,-0.50, 0.44);         // under the return
