@@ -3700,6 +3700,10 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
   // WAR TABLE (MK-III)
   if(/\b(hide|stow|dismiss|close) (?:the )?war ?table\b/.test(t)){
     window.__xrWarTable&&window.__xrWarTable(false);speak("War table stowed, sir.","normal");return;}
+  // WAR ROOM -- the full command centre (globe table + wall of intel). Check BEFORE the plain war-table match.
+  if(/\b(war ?room|command (?:room|centre|center)|deploy (?:the )?(?:war )?room|battle station)\b/.test(t)){
+    if(window._xrPresenting&&window.__xrWarRoom){window.__xrWarRoom();}
+    else speak("Step into immersive mode first, sir.","normal");return;}
   if(/\b(war ?table|command table|deploy (?:the )?(?:war )?table|bring up (?:the )?(?:war )?table)\b/.test(t)){
     if(window._xrPresenting&&window.__xrWarTable&&window.__xrWarTable(true))speak(pick(["War table online, sir.","Global command, sir.","The table is live, sir."]),"confident");
     else speak("Step into immersive mode first, sir.","normal");return;}
@@ -5995,6 +5999,7 @@ const _WRIST_APPS = [
   { icon:'✕', label:'CLEAR',   kind:'cmd',   target:'clear' },
   { icon:'⚙', label:'HUD',     kind:'panel', target:'hud' },
   { icon:'⊕', label:'WAR TBL', kind:'cmd',   target:'wartable' },
+  { icon:'❖', label:'WAR ROOM',kind:'cmd',   target:'warroom' },
   { icon:'⌂', label:'FORGE',   kind:'cmd',   target:'forge' },
 ];
 const _WRIST_PER = 6, _WRIST_COLS = [76, 190, 304], _WRIST_ROWS = [102, 180], _WRIST_TILE = 60;
@@ -6035,6 +6040,7 @@ const _APP_TILES = [
 ];
 // UPDATE LOG -- newest first. [tag, title, one-liner]. Shown as a glowing timeline in the 'changelog' panel.
 const _CHANGELOG = [
+  ['NEW', 'War Room',             'Say "war room" — floor-standing globe table + a wall of live intel'],
   ['NEW', 'Forge Relics',         'Arc reactor, MK helmet, repulsor gauntlet + holo schematic on the bench'],
   ['NEW', 'Dome HUD',             'Visor now curves top+bottom to fit the Quest display'],
   ['NOW', 'DUM-E Fetch',          'Say "dum-e bring this to me" — he rolls over and delivers it'],
@@ -6121,6 +6127,7 @@ function _wristFireApp(app, worldPos) {
     else if (app.target==='next') window.__h3dNextModel && window.__h3dNextModel();
     else if (app.target==='clear') window.__h3dDismissPanels && window.__h3dDismissPanels();
     else if (app.target==='wartable') window.__xrWarTable && window.__xrWarTable(!_warTable);   // toggle
+    else if (app.target==='warroom') window.__xrWarRoom && window.__xrWarRoom();
     else if (app.target==='forge') window.__xrForge && window.__xrForge(!_forge);   // toggle the forge bay
   } else { _spawnPanel(app.target, worldPos); }
 }
@@ -6814,6 +6821,7 @@ function _appsSelect(panel, uv, hand) {
           else if (t.target === 'next') window.__h3dNextModel && window.__h3dNextModel();
           else if (t.target === 'clear') window.__h3dDismissPanels && window.__h3dDismissPanels();
           else if (t.target === 'wartable') window.__xrWarTable && window.__xrWarTable(!_warTable);   // toggle
+          else if (t.target === 'warroom') window.__xrWarRoom && window.__xrWarRoom();
           else if (t.target === 'forge') window.__xrForge && window.__xrForge(!_forge);   // toggle the forge bay
         }
         else if (t.kind === 'web') {                          // honest: exit immersive, then open in the 2D browser
@@ -7216,6 +7224,12 @@ function _makeEarthProjector() {
       bumpMap:topo, bumpScale:0.02, transparent:true, opacity:0.96,
       emissive:new THREE.Color(0x114a6e), emissiveIntensity:0.85, specular:new THREE.Color(0x0a1a26), shininess:8 }));
   globe.rotation.y = -Math.PI*0.5; roll.add(globe);
+  // LAT/LONG WIREFRAME GRID over the globe -- crisp cyan parallels + meridians = the "command globe" read
+  // (a bare textured sphere looks muddy as a hologram; the grid is what makes it read sharp and technical).
+  { const gm = () => new THREE.MeshBasicMaterial({ color:0x9fe8ff, transparent:true, opacity:0.34, blending:THREE.AdditiveBlending, depthWrite:false });
+    for (let k=1;k<6;k++){ const lat=(k/6-0.5)*Math.PI, rr=Math.cos(lat)*0.505, yy=Math.sin(lat)*0.505;
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(rr,0.0012,4,72), gm()); ring.rotation.x=Math.PI/2; ring.position.y=yy; roll.add(ring); }
+    for (let m=0;m<8;m++){ const ring=new THREE.Mesh(new THREE.TorusGeometry(0.505,0.0012,4,72), gm()); ring.rotation.y=m*Math.PI/8; roll.add(ring); } }
   // FRESNEL ATMOSPHERE (batch-2): view-dependent rim glow -- bright only at the limb, like every top holo-globe
   // (Stripe/GitHub/GMUNK). Replaces the old flat uniform backside shell that read as a painted ball.
   let atmo;
@@ -7295,6 +7309,7 @@ window.__xrEarthProjector = function (show) {
   if (!_earthProj) _earthProj = _makeEarthProjector();
   const cam = renderer.xr.getCamera(); const cp = new THREE.Vector3(); cam.getWorldPosition(cp);
   const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion); fwd.y = 0; fwd.normalize();
+  _earthProj.scale.setScalar(1);   // full size standalone (the war table shrinks it to 0.5 on its own)
   _earthProj.position.copy(cp).addScaledVector(fwd, 1.25); _earthProj.position.y = cp.y - 0.72;   // globe floats near eye level
   if (!_earthProj.parent) scene.add(_earthProj);
   try { window.__xrParticleBurst && window.__xrParticleBurst(_earthProj.position.clone().add(new THREE.Vector3(0,0.78,0))); } catch(_){}
@@ -7326,6 +7341,13 @@ function _updateEarthProjector() {
   const oa = u.orbit.geometry.attributes.position, ob = u.orbitBase, ph = u.ph;
   for (let i=0;i<ph.length;i++){ oa.array[i*3+1] = ob[i*3+1] + Math.sin(u.t*0.6 + ph[i])*0.02; }
   oa.needsUpdate = true;
+  // WAR TABLE (up alongside the globe): spin the radar sweep + pulse the contact blips
+  if (_warTable && _warTable.userData._sweep) {
+    _warTable.userData._t += 0.016;
+    _warTable.userData._sweep.rotation.y -= 0.85 * 0.016;
+    const bl = _warTable.userData._blips;
+    if (bl) for (const b of bl) b.material.opacity = 0.4 + 0.5 * Math.abs(Math.sin(_warTable.userData._t*2 + b.userData._ph));
+  }
 }
 // === STARK WORKBENCH -- a BOUNDED holotable the hologram sits on (replaces the "extremely large"
 // desktop stage grid in AR). Lock = stays put; Unlock = grab-movable like a panel. Position persisted.
@@ -7529,16 +7551,29 @@ function _drawWarTableTop(cv) {
 let _warTable = null;
 function _makeWarTable() {
   const G = new THREE.Group();
+  const CY = 0x7fefff, CH = 0xdff4ff, AM = 0xffb648;
+  const mat = (col,op)=>new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:op, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide });
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 1024;
   const top = new THREE.Mesh(new THREE.CircleGeometry(0.6, 72),
     new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(_drawWarTableTop(cv)), transparent: true, opacity: 0.92, side: THREE.DoubleSide, depthWrite: false }));
   top.rotation.x = -Math.PI/2; G.add(top);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.012, 12, 80), new THREE.MeshBasicMaterial({ color: 0x7fefff, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }));
-  rim.rotation.x = -Math.PI/2; G.add(rim);
-  // faint pedestal glow ring below (grounds the table without a solid leg)
-  const ped = new THREE.Mesh(new THREE.RingGeometry(0.12, 0.34, 48), new THREE.MeshBasicMaterial({ color: 0x7fefff, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-  ped.rotation.x = -Math.PI/2; ped.position.y = -0.28; G.add(ped);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.012, 12, 80), mat(CY,0.75)); rim.rotation.x = -Math.PI/2; G.add(rim);
+  const rim2 = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.004, 8, 72), mat(CH,0.4)); rim2.rotation.x = -Math.PI/2; rim2.position.y = 0.001; G.add(rim2);
+  // ROTATING RADAR SWEEP -- a fading sector spinning over the surface = the "live" war-table read
+  const sweepGrp = new THREE.Group(); G.add(sweepGrp);
+  const sweep = new THREE.Mesh(new THREE.CircleGeometry(0.56, 40, 0, 0.6), mat(CY,0.13)); sweep.rotation.x = -Math.PI/2; sweep.position.y = 0.004; sweepGrp.add(sweep);
+  const lead = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.003), mat(CY,0.55)); lead.rotation.x = -Math.PI/2; lead.position.set(0.28, 0.005, 0); sweepGrp.add(lead);
+  // CONTACT BLIPS -- pulsing markers scattered on the surface (one amber = the priority track)
+  const blips = []; let bs = 13; const brnd = ()=>{ bs=(bs*1103515245+12345)&0x7fffffff; return bs/0x7fffffff; };
+  for (let i=0;i<6;i++){ const a=brnd()*6.28, r=0.14+brnd()*0.40; const b=new THREE.Mesh(new THREE.CircleGeometry(0.013,14), mat(i===0?AM:CY,0.9));
+    b.rotation.x=-Math.PI/2; b.position.set(Math.cos(a)*r,0.005,Math.sin(a)*r); b.userData._ph=brnd()*6.28; G.add(b); blips.push(b); }
+  // FLOOR PEDESTAL -- a column + a glowing base ring so the table STANDS on the floor (not floating in mid-air)
+  const col = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.12,0.9,20,1,true), mat(CY,0.16)); col.position.y=-0.46; G.add(col);
+  const colW = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.12,0.9,10,3,true), new THREE.MeshBasicMaterial({ color:CH, transparent:true, opacity:0.45, wireframe:true, blending:THREE.AdditiveBlending, depthWrite:false })); colW.position.y=-0.46; G.add(colW);
+  const baseRing = new THREE.Mesh(new THREE.TorusGeometry(0.27,0.012,10,48), mat(CY,0.7)); baseRing.rotation.x=-Math.PI/2; baseRing.position.y=-0.9; G.add(baseRing);
+  const baseGlow = new THREE.Mesh(new THREE.RingGeometry(0.06,0.30,48), mat(CY,0.13)); baseGlow.rotation.x=-Math.PI/2; baseGlow.position.y=-0.897; G.add(baseGlow);
   G.userData._isPanel = true; G.userData._static = true; G.userData._panelType = 'wartable';
+  G.userData._sweep = sweepGrp; G.userData._blips = blips; G.userData._t = 0;
   return G;
 }
 window.__xrWarTable = function (show) {
@@ -7552,13 +7587,15 @@ window.__xrWarTable = function (show) {
   if (!_warTable) _warTable = _makeWarTable();
   const cam = renderer.xr.getCamera(); const cp = new THREE.Vector3(); cam.getWorldPosition(cp);
   const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion); fwd.y = 0; fwd.normalize();
-  _warTable.position.copy(cp).addScaledVector(fwd, 1.15); _warTable.position.y = cp.y - 0.62;   // waist height, table you stand at
+  const _wtFloorY = (typeof _forgeFloorY === 'function' ? _forgeFloorY(cp) : cp.y - 1.1);
+  _warTable.position.copy(cp).addScaledVector(fwd, 1.15); _warTable.position.y = _wtFloorY + 0.9;   // STANDS on the floor at table-top height (was floating at waist)
   if (!_warTable.parent) scene.add(_warTable);
   try { window.__xrParticleBurst && window.__xrParticleBurst(_warTable.position.clone()); } catch(_){}
   // Earth projector rises as the centrepiece, floated above the table hub
   try {
     if (window.__xrEarthProjector && window.__xrEarthProjector(true) && _earthProj) {
-      _earthProj.position.set(_warTable.position.x, _warTable.position.y + 0.42, _warTable.position.z);
+      _earthProj.scale.setScalar(0.5);   // HALF-size globe as the table centrepiece (was full 1m-wide, way too big)
+      _earthProj.position.set(_warTable.position.x, _warTable.position.y + 0.02, _warTable.position.z);   // emitter sits ON the table, globe floats above
     }
   } catch(_){}
   return true;
@@ -7847,6 +7884,44 @@ window.__xrCommandRoom = function () {
       try { window.__xrParticleBurst && window.__xrParticleBurst(from); } catch(_){}
     } catch(_){}
   }, 300 + ROOM.length * 260 + 150);
+  return true;
+};
+// === WAR ROOM -- the full command centre: the holographic GLOBE TABLE as the hub, wrapped by a wall of live
+// intel panels docked in a two-tier arc around it, all assembling in a staggered cinematic reveal (each pane
+// rides in from the table with a ripple). Say "war room". This is the Avengers-table experience: you stand at
+// the globe and the world's data curves around you. Reuses the table, globe, panel + ripple systems. =========
+window.__xrWarRoom = function () {
+  if (!renderer.xr.isPresenting) return false;
+  if (performance.now() - _cmdRoomT < 2500) return true;   // debounce staggered spawns
+  _cmdRoomT = performance.now();
+  try { window.__diag && window.__diag('WAR-ROOM'); } catch(_){}
+  window.__h3dDismissPanels();
+  const cam = renderer.xr.getCamera();
+  const from = new THREE.Vector3(); cam.getWorldPosition(from);
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+  from.addScaledVector(fwd, 0.25);
+  // 1) the GLOBE TABLE hub rises first as the centrepiece
+  try { window.__xrWarTable && window.__xrWarTable(true); } catch(_){}
+  try { if (_warTable) window.__xrRipple && window.__xrRipple(_warTable.position.clone()); } catch(_){}
+  // 2) a wrapping WALL of live intel docks around/beyond the table -- two tiers, every panel facing you
+  const RING = [
+    { type: 'dashboard', slot: { a:  0.00, r: 1.75, y: 0.30 } },   // main board, dead ahead above the globe
+    { type: 'map',       slot: { a: -0.60, r: 1.70, y: 0.12 } },
+    { type: 'weather',   slot: { a:  0.60, r: 1.70, y: 0.12 } },
+    { type: 'vision',    slot: { a: -1.15, r: 1.55, y: 0.32 } },
+    { type: 'changelog', slot: { a:  1.15, r: 1.55, y: 0.32 } },
+    { type: 'clock',     slot: { a: -1.62, r: 1.45, y: 0.04 } },
+    { type: 'timer',     slot: { a:  1.62, r: 1.45, y: 0.04 } },
+  ];
+  RING.forEach((p, i) => setTimeout(() => {
+    try {
+      if (!renderer.xr.isPresenting) return;
+      _spawnPanel(p.type, from.clone(), p.slot);
+      const last = _panels[_panels.length - 1];
+      if (last && last.userData._targetPos) window.__xrRipple && window.__xrRipple(last.userData._targetPos.clone());
+    } catch(_){}
+  }, 350 + i * 200));
+  try { window.speak(pick(['War room online, sir. The world is yours.', 'Command centre deployed, sir.', 'Global command is live, sir.']), 'confident'); } catch(_){}
   return true;
 };
 const _wristFwd = new THREE.Vector3(), _wristKn = new THREE.Vector3(),
