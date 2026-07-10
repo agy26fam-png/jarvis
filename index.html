@@ -2697,32 +2697,41 @@ window.__brainKey=function(){try{return localStorage.getItem('jarvisBrainKey')||
 // TUNNEL AUTO-DISCOVERY: hosted builds (Quest/phone) learn the brain's CURRENT tunnel URL from
 // /brain.json, which serve_tunnel.bat republishes on every tunnel start -- so the headset never
 // needs a URL typed into it. An explicit ?brain= or saved override always wins.
-(function(){try{
-  if(BRAIN)return;   // local default or manual override already set
-  fetch('/brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
-    if(!d||!d.url)return;
-    const cand=String(d.url).replace(/\/$/,'');
-    // Probe before committing: a STALE brain.json (tunnel died, PC off) must not become the
-    // brain URL -- every HUD poll would hang at Cloudflare's edge and freeze the page.
-    const ac=new AbortController();setTimeout(()=>{try{ac.abort();}catch(_){}},5000);
-    const k=(function(){try{return localStorage.getItem('jarvisBrainKey')||'';}catch(_){return '';}})();
-    fetch(cand+'/tts_status',{signal:ac.signal,headers:k?{'X-Jarvis-Key':k}:{}})
-      .then(r=>{
-        if(r.ok){BRAIN=cand;window.BRAIN=cand;return;}
-        if(r.status===401){
-          // Brain reachable but LOCKED: the one-time device key was never entered here.
-          // Say it in plain sight instead of silently degrading to "that one escapes me".
-          try{window.__diag&&window.__diag('BRAIN-LOCKED-401');}catch(_){}
-          const b=document.createElement('div');
-          b.style.cssText='position:fixed;top:12vh;left:50%;transform:translateX(-50%);z-index:98;padding:14px 22px;background:rgba(20,4,4,.94);border:1px solid rgba(255,150,110,.65);color:#ffcfa8;font:600 12px/1.7 "JetBrains Mono",monospace;letter-spacing:1px;text-align:center;max-width:86vw';
-          b.innerHTML='BRAIN LOCKED — ONE-TIME KEY NEEDED ON THIS DEVICE<br>open once:  <span style="color:#fff">'+location.origin+'/?brainkey=YOUR-KEY</span><br><span style="opacity:.7">(the key is on your desktop Jarvis — ask there)</span>';
-          document.body.appendChild(b);
-          setTimeout(()=>{try{b.remove();}catch(_){}},45000);
-        }
-      })
-      .catch(()=>{});   // dead tunnel -> stay brainless-local (fast) rather than frozen
-  }).catch(()=>{});
-}catch(_){}})();
+// SELF-HEALING: the discovery RETRIES every ~12s until it commits a live brain URL. The old one-shot
+// version left Jarvis permanently mute if the very first probe failed (PC brain still booting, or a
+// transient Quest network blip) -- with no retry, BRAIN stayed '' forever until a manual page reload.
+(function(){
+  let _tries=0, _locked=false;
+  function _retry(){ if(BRAIN||_locked||++_tries>40) return; setTimeout(_discoverBrain,12000); }   // retry ~8min then give up
+  function _discoverBrain(){ try{
+    if(BRAIN)return;   // local default or manual override already set (or already discovered)
+    fetch('/brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
+      if(!d||!d.url){_retry();return;}
+      const cand=String(d.url).replace(/\/$/,'');
+      // Probe before committing so a STALE brain.json (tunnel died, PC off) can't become the brain URL.
+      const ac=new AbortController();setTimeout(()=>{try{ac.abort();}catch(_){}},5000);
+      const k=(function(){try{return localStorage.getItem('jarvisBrainKey')||'';}catch(_){return '';}})();
+      fetch(cand+'/tts_status',{signal:ac.signal,headers:k?{'X-Jarvis-Key':k}:{}})
+        .then(r=>{
+          if(r.ok){BRAIN=cand;window.BRAIN=cand;try{window.__diag&&window.__diag('BRAIN-ONLINE',{u:cand});}catch(_){}return;}
+          if(r.status===401){
+            // Brain reachable but LOCKED: the one-time device key was never entered here.
+            _locked=true;
+            try{window.__diag&&window.__diag('BRAIN-LOCKED-401');}catch(_){}
+            const b=document.createElement('div');
+            b.style.cssText='position:fixed;top:12vh;left:50%;transform:translateX(-50%);z-index:98;padding:14px 22px;background:rgba(20,4,4,.94);border:1px solid rgba(255,150,110,.65);color:#ffcfa8;font:600 12px/1.7 "JetBrains Mono",monospace;letter-spacing:1px;text-align:center;max-width:86vw';
+            b.innerHTML='BRAIN LOCKED — ONE-TIME KEY NEEDED ON THIS DEVICE<br>open once:  <span style="color:#fff">'+location.origin+'/?brainkey=YOUR-KEY</span><br><span style="opacity:.7">(the key is on your desktop Jarvis — ask there)</span>';
+            document.body.appendChild(b);
+            setTimeout(()=>{try{b.remove();}catch(_){}},45000);
+            return;
+          }
+          _retry();   // brain not ready yet -> try again shortly
+        })
+        .catch(()=>{_retry();});   // dead/blip tunnel -> retry (self-heal when the PC brain comes up)
+    }).catch(()=>{_retry();});
+  }catch(_){_retry();} }
+  _discoverBrain();
+})();
 window.BRAIN=BRAIN;
 const UTIL=/(set a timer|timer for|set an alarm|countdown|remind me|reminder|what time|time is|the time|what day|the date|today's date|flip a coin|roll a dice|roll a die|pick a number|how much is| plus | minus | times |divided by| percent)/;
 const MUTATE=/(remind me|reminder|add .* to|text (my|me)|send (a )?(note|message|text)|put .* on my list|open |launch |go to |pull up |play |search .* on |lock|sleep|mute|volume|brightness|close |screenshot|admin|elevate|flush|turn (it|the)|click|type |scroll|cursor|press |my screen|full command|full ?screen|stand down|take over|at ease|sound (scared|excited|happy|sad|angry|calm|nervous|whisper|urgent|sarcastic|serious|stern|confident)|be (scared|excited|happy|sad|angry|calm|nervous|stern|serious|sarcastic|confident)|talk (normal|normally|like)|back to normal|drop the (act|voice)|shut ?down|shut it down|power down|standby|stand by|stop listening|dismiss|wake up|come back|goodnight|good night|suit up|diagnostic|wind down|work mode|night mode|focus mode|boot sequence|protocol|play the theme|back in black|fly me|hologram|privacy|intruder|new tab|close tab|switch tab|previous tab|reload|reopen tab|fullscreen|speed up|slow down|skip ahead|skip back|snap left|snap right|maximize|minimize|remember|recall|forget|make a note|jot down|clipboard|now playing|schedule|remind me at|remind me in|think hard about|deep think|deep research|deep dive|plan my (day|afternoon|morning|evening)|organi[sz]e my day|what should i work on|what should i do next|translate|define |decide between|read (the )?active|read what i have open|look at the file|(remember|learn|memori[sz]e|save|sample|record|register|store|forget) (my|.{1,30}'s) voice|this is me|it'?s me|who is speaking|who am i|voice gate|only listen to|allow |restrict |dashboard|state of the day|the briefing|agenda|next event|next meeting|new desktop|next desktop|previous desktop|close (this )?desktop)/;  // side effects (open/control/admin/screen/display/voice/lifecycle/macros/utilities): never run speculatively
@@ -3701,12 +3710,22 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
   if(/\b(hide|stow|dismiss|close) (?:the )?war ?table\b/.test(t)){
     window.__xrWarTable&&window.__xrWarTable(false);speak("War table stowed, sir.","normal");return;}
   // WAR ROOM -- the full command centre (globe table + wall of intel). Check BEFORE the plain war-table match.
-  if(/\b(war ?room|command (?:room|centre|center)|deploy (?:the )?(?:war )?room|battle station)\b/.test(t)){
+  if(/\b(war ?room|command (?:centre|center)|deploy (?:the )?(?:war )?room|battle station)\b/.test(t)){
     if(window._xrPresenting&&window.__xrWarRoom){window.__xrWarRoom();}
     else speak("Step into immersive mode first, sir.","normal");return;}
   if(/\b(war ?table|command table|deploy (?:the )?(?:war )?table|bring up (?:the )?(?:war )?table)\b/.test(t)){
     if(window._xrPresenting&&window.__xrWarTable&&window.__xrWarTable(true))speak(pick(["War table online, sir.","Global command, sir.","The table is live, sir."]),"confident");
     else speak("Step into immersive mode first, sir.","normal");return;}
+  // FRIDAY / MINIMAL HUD -- calm mode: strip the chrome to a whisper. "full hud" / "normal hud" turns it back.
+  if(/\b(friday mode|minimal (?:mode|hud)|calm mode|quiet mode|declutter|strip the hud|clean mode)\b/.test(t)){
+    const on=window.__xrFridayMode&&window.__xrFridayMode(true);speak(pick(["Going minimal, sir.","Quiet mode, sir. I'll keep it clean.","Stripping it back, sir."]),"normal");return;}
+  if(/\b(full hud|normal (?:mode|hud)|max(?:imal)? hud|restore (?:the )?hud|busy mode|exit (?:friday|minimal|calm) mode)\b/.test(t)){
+    window.__xrFridayMode&&window.__xrFridayMode(false);speak("Full readout restored, sir.","normal");return;}
+  // COMBAT VISOR -- isolated in-helmet HUD (target lock, artificial horizon, radar, telemetry). Off = normal HUD.
+  if(/\b(combat (?:visor|mode|hud)|helmet (?:mode|hud|up)|weapons? (?:online|hot)|suit up the hud|targeting mode)\b/.test(t)){
+    const on=window.__xrCombatVisor&&window.__xrCombatVisor();speak(on?pick(["Combat visor online, sir. Weapons hot.","In the helmet, sir."]):"Standing down, sir.","confident");return;}
+  if(/\b(visor off|helmet off|stand down|weapons? (?:cold|safe)|exit combat)\b/.test(t)){
+    window.__xrCombatVisor&&window.__xrCombatVisor(false);speak("Combat visor offline, sir.","normal");return;}
   // FORGE BAY (phase 2 -- wall-anchored workshop)
   if(/\b(hide|stow|dismiss|close|shut down) (?:the )?forge(?: bay)?\b/.test(t)){
     window.__xrForge&&window.__xrForge(false);speak("Forge offline, sir.","normal");return;}
@@ -5753,7 +5772,7 @@ function _slapUpdate() {
     const ms = (typeof modelSize !== 'undefined' ? modelSize : 0.4);
     const cand = [];
     for (const p of _panels) if (p.visible !== false && !(p.parent && p.parent !== scene)) cand.push([p, 0.16]);
-    if (typeof root !== 'undefined' && meshData.length && _grip.target !== root) cand.push([root, Math.max(0.12, ms*0.4)]);
+    if (typeof root !== 'undefined' && meshData.length && _grip.target !== root) cand.push([root, Math.min(0.28, Math.max(0.12, ms*0.4))]);   // CAP the radius: a big/scaled model must NOT be slappable from meters away
     for (const sp of _spawns) cand.push([sp, 0.16]);
     if (_arNebula) cand.push([_arNebula, 0.22]);
     for (const [o, r] of cand) {
@@ -7153,6 +7172,7 @@ window.__h3dDismissPanels = function() {
   }
   _panels.length = 0; if (keep.length) _panels.push(...keep);
   try { window.__xrNebula(false); } catch(_){}
+  try { if (_warTable) window.__xrWarTable && window.__xrWarTable(false); } catch(_){}   // war table + its globe are separate scene children -> a "clear" must remove them too, else they orphan
 };
 // === HOLOGRAPHIC EARTH PROJECTOR -- the JARVIS signature centrepiece ========================
 // A realistic Earth globe (real blue-marble + topology relief) floating above a sci-fi emitter pad,
@@ -7292,7 +7312,7 @@ function _makeEarthProjector() {
   G.userData = { globeGrp, roll, g1, g2, g3, gy, orbit, orbitBase: ofp.slice(), ph, t:0, rollPrev:null, arcHeads: _arcHeads };
   return G;
 }
-const _ahTmp = new THREE.Vector3();
+const _ahTmp = new THREE.Vector3(), _earthGC = new THREE.Vector3();
 function _updateEarthArcs(u) {   // comet-heads travel along the arcs; markers pulse
   const heads = u.arcHeads; if (!heads) return;
   for (const h of heads) {
@@ -7304,29 +7324,41 @@ function _updateEarthArcs(u) {   // comet-heads travel along the arcs; markers p
 }
 let _earthProj = null;
 window.__xrEarthProjector = function (show) {
-  if (show === false) { if (_earthProj) { scene.remove(_earthProj); _earthProj.traverse(o=>{ o.geometry?.dispose?.(); o.material?.map?.dispose?.(); o.material?.dispose?.(); }); _earthProj = null; } return false; }
+  if (show === false) { if (_earthProj) { scene.remove(_earthProj);
+    _earthProj.traverse(o=>{ o.geometry?.dispose?.(); const m=o.material; if(m){ m.map?.dispose?.(); m.displacementMap?.dispose?.(); m.bumpMap?.dispose?.(); m.alphaMap?.dispose?.(); m.emissiveMap?.dispose?.(); m.dispose?.(); } });   // dispose ALL maps (topo displacement/bump + cone alpha) -> no leak per open/close
+    _earthProj = null; } return false; }
   if (!renderer.xr.isPresenting) return false;
   if (!_earthProj) _earthProj = _makeEarthProjector();
-  const cam = renderer.xr.getCamera(); const cp = new THREE.Vector3(); cam.getWorldPosition(cp);
-  const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion); fwd.y = 0; fwd.normalize();
-  _earthProj.scale.setScalar(1);   // full size standalone (the war table shrinks it to 0.5 on its own)
-  _earthProj.position.copy(cp).addScaledVector(fwd, 1.25); _earthProj.position.y = cp.y - 0.72;   // globe floats near eye level
+  if (!_warTable) {   // STANDALONE placement only -- when the war table hosts the globe it positions + shrinks it
+    const cam = renderer.xr.getCamera(); const cp = new THREE.Vector3(); cam.getWorldPosition(cp);
+    const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion); fwd.y = 0; fwd.normalize();
+    _earthProj.scale.setScalar(1);   // full size standalone (the war table shrinks it to 0.5 on its own)
+    _earthProj.position.copy(cp).addScaledVector(fwd, 1.25); _earthProj.position.y = cp.y - 0.72;   // globe floats near eye level
+  }
   if (!_earthProj.parent) scene.add(_earthProj);
   try { window.__xrParticleBurst && window.__xrParticleBurst(_earthProj.position.clone().add(new THREE.Vector3(0,0.78,0))); } catch(_){}
   return true;
 };
 function _updateEarthProjector() {
+  // WAR TABLE animation FIRST -- it lives on _warTable, not _earthProj, so it must keep running even if the globe
+  // is dismissed on its own (else the still-visible table would freeze and look hung).
+  if (_warTable && _warTable.userData._sweep) {
+    _warTable.userData._t += 0.016;
+    _warTable.userData._sweep.rotation.y -= 0.85 * 0.016;
+    const bl = _warTable.userData._blips;
+    if (bl) for (const b of bl) b.material.opacity = 0.4 + 0.5 * Math.abs(Math.sin(_warTable.userData._t*2 + b.userData._ph));
+  }
   if (!_earthProj) return;
   const u = _earthProj.userData; u.t += 0.016;
   u.g1.rotation.z += 0.004; u.g2.rotation.z -= 0.003; u.g3.rotation.y += 0.0025;   // gimbal rings
   try { _updateEarthArcs(u); } catch(_){}   // batch-2: comet-heads travel the arcs, markers pulse
   // ROLLABLE: pinch anywhere on the globe and drag to spin it in ANY direction (360). Auto-spins when let go.
-  const gc = new THREE.Vector3(); u.globeGrp.getWorldPosition(gc);
+  u.globeGrp.getWorldPosition(_earthGC);   // reused temp (was a per-frame THREE.Vector3 alloc in the hot path)
   let rolling = false;
   for (const hand of _xrHands) {
     if (!hand) continue;
     const pp = _pinchPoint(hand);
-    if (pp && pp.pinching && pp.p.distanceTo(gc) < 0.55) {
+    if (pp && pp.pinching && pp.p.distanceTo(_earthGC) < 0.55) {
       rolling = true;
       if (u.rollPrev) {
         const dx = pp.p.x - u.rollPrev.x, dy = pp.p.y - u.rollPrev.y;
@@ -7341,13 +7373,6 @@ function _updateEarthProjector() {
   const oa = u.orbit.geometry.attributes.position, ob = u.orbitBase, ph = u.ph;
   for (let i=0;i<ph.length;i++){ oa.array[i*3+1] = ob[i*3+1] + Math.sin(u.t*0.6 + ph[i])*0.02; }
   oa.needsUpdate = true;
-  // WAR TABLE (up alongside the globe): spin the radar sweep + pulse the contact blips
-  if (_warTable && _warTable.userData._sweep) {
-    _warTable.userData._t += 0.016;
-    _warTable.userData._sweep.rotation.y -= 0.85 * 0.016;
-    const bl = _warTable.userData._blips;
-    if (bl) for (const b of bl) b.material.opacity = 0.4 + 0.5 * Math.abs(Math.sin(_warTable.userData._t*2 + b.userData._ph));
-  }
 }
 // === STARK WORKBENCH -- a BOUNDED holotable the hologram sits on (replaces the "extremely large"
 // desktop stage grid in AR). Lock = stays put; Unlock = grab-movable like a panel. Position persisted.
@@ -7394,36 +7419,44 @@ function _drawBenchSurface(cv) {
   g.strokeStyle = AM+'0.7)'; g.lineWidth = 2; g.beginPath(); g.moveTo(W-92,W-96); g.lineTo(W-92,W-72); g.moveTo(W-104,W-84); g.lineTo(W-80,W-84); g.stroke();
   return cv;
 }
-// L-SHAPED DESK (was a flat slab) -- a main work surface + a perpendicular RETURN wing forming an L, with
-// pedestal drawer units, a cable grommet, and end panels, all in the cyan-wireframe workbench theme. The
-// premium forge props (reactor / helmet / gauntlet / holo) sit on the MAIN top. Local frame: +X right,
-// +Z toward the user (front), so __xrForge can yaw it to face the wearer. Still one grabbable/lockable panel.
-function _makeWorkbench() {
+// WORKBENCH -- FLAT slab by default (the standalone bench, unchanged from before). Only the FORGE passes
+// desk=true, which turns it into a FLOOR-STANDING L-DESK: main top + a RIGHT-hand RETURN wing, drawer fronts
+// facing the user, legs reaching the floor. Local frame: +X = right, +Z = toward the user (front).
+const _DESK_H = 0.72;   // desk-top height above the floor (forge sits the top at floorY + _DESK_H so legs land)
+function _makeWorkbench(desk) {
   const G = new THREE.Group();
   const CY = 0x7fefff, CH = 0xdff4ff, BLUE = 0x2a9fff;
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 1024;
   const tex = new THREE.CanvasTexture(_drawBenchSurface(cv));
+  if (!desk) {   // ---- FLAT BENCH (standalone, same as it always was) ----
+    const surf = new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.4), new THREE.MeshBasicMaterial({ map:tex, transparent:true, opacity:0.92, side:THREE.DoubleSide, depthWrite:false }));
+    surf.rotation.x = -Math.PI/2; G.add(surf);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(1.42,0.03,1.42), new THREE.MeshBasicMaterial({ color:0x061422, transparent:true, opacity:0.6 })); slab.position.y = -0.02; G.add(slab);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.42,0.03,1.42)), new THREE.LineBasicMaterial({ color:CY, transparent:true, opacity:0.7, blending:THREE.AdditiveBlending })); edges.position.y = -0.02; G.add(edges);
+    G.userData._isPanel = true; G.userData._static = true; G.userData._panelType = 'workbench'; G.userData._desk = false;
+    return G;
+  }
+  // ---- FLOOR-STANDING L-DESK (forge only) ----
+  const DH = _DESK_H;
   const box = (w,h,d,x,y,z,op,col) => { const b = new THREE.BoxGeometry(w,h,d);
     const m = new THREE.Mesh(b, new THREE.MeshBasicMaterial({ color:0x061422, transparent:true, opacity:0.42, depthWrite:false })); m.position.set(x,y,z); G.add(m);
     const e = new THREE.LineSegments(new THREE.EdgesGeometry(b), new THREE.LineBasicMaterial({ color:col||CY, transparent:true, opacity:op==null?0.6:op, blending:THREE.AdditiveBlending })); e.position.set(x,y,z); G.add(e); return e; };
   const topSurf = (w,d,x,z) => { const s = new THREE.Mesh(new THREE.PlaneGeometry(w,d), new THREE.MeshBasicMaterial({ map:tex, transparent:true, opacity:0.92, side:THREE.DoubleSide, depthWrite:false }));
-    s.rotation.x = -Math.PI/2; s.position.set(x,0,z); G.add(s); box(w+0.02,0.03,d+0.02,x,-0.02,z,0.7); };   // surface + thin slab w/ glowing edge
-  topSurf(1.50,0.82, 0, 0);            // MAIN top (props live here), front edge toward the user
-  topSurf(0.72,1.15, -1.11, -0.165);   // RETURN wing on the left, running back -> the L
-  // pedestal drawer units (body + 3 chrome drawer seams + handles)
-  const pedestal = (x,z,w) => { box(w,0.56,0.52,x,-0.31,z,0.5);
-    for (let i=0;i<3;i++){ const dy=-0.12-i*0.15; box(w*0.9,0.006,0.006,x,dy,z+0.262,0.55,CH); box(0.09,0.02,0.012,x,dy+0.045,z+0.264,0.7,CH); } };
-  pedestal( 0.55, 0.00, 0.44);         // under the main top, right
-  pedestal(-1.11,-0.50, 0.44);         // under the return, back
-  // end + outer leg panels (structure toward the floor)
-  box(0.03,0.62,0.78,-0.72,-0.33, 0.00,0.35);
-  box(0.03,0.62,1.10,-1.45,-0.33,-0.165,0.35);
-  // cable grommet on the main top + a blue power lead dropping through it
+    s.rotation.x = -Math.PI/2; s.position.set(x,0,z); G.add(s); box(w+0.02,0.03,d+0.02,x,-0.02,z,0.7); };
+  topSurf(1.50,0.82, 0, 0);            // MAIN top -- front edge (+Z) toward the user
+  topSurf(0.72,1.15, 1.11, -0.165);    // RETURN wing on the RIGHT (+X), running back -> the L
+  // FLOOR-STANDING pedestal drawer units: bodies reach the floor; 3 chrome drawer seams on the FRONT (+Z, toward you)
+  const pedestal = (x,z,w) => { box(w,0.60,0.52,x,-(DH-0.12)+0.30,z,0.5);   // body bottom on the floor (y ~ -DH)
+    for (let i=0;i<3;i++){ const dy=-0.20-i*0.16; box(w*0.9,0.006,0.006,x,dy,z+0.262,0.55,CH); box(0.10,0.022,0.014,x,dy,z+0.265,0.75,CH); } };
+  pedestal(-0.55, 0.00, 0.44);         // under the main top (left)
+  pedestal( 1.11,-0.50, 0.44);         // under the return
+  // outer leg panels down to the floor
+  box(0.03,DH,0.80, 0.72,-DH/2, 0.00,0.35);
+  box(0.03,DH,1.12, 1.45,-DH/2,-0.165,0.35);
+  // cable grommet on the main top
   const gr = new THREE.Mesh(new THREE.TorusGeometry(0.03,0.006,8,20), new THREE.MeshBasicMaterial({ color:CY, transparent:true, opacity:0.7, blending:THREE.AdditiveBlending, depthWrite:false }));
-  gr.rotation.x = -Math.PI/2; gr.position.set(0.55,0.006,-0.3); G.add(gr);
-  const crv = new THREE.QuadraticBezierCurve3(new THREE.Vector3(0.55,0,-0.3), new THREE.Vector3(0.6,-0.32,-0.34), new THREE.Vector3(0.55,-0.6,-0.28));
-  G.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(crv.getPoints(14)), new THREE.LineBasicMaterial({ color:BLUE, transparent:true, opacity:0.6, blending:THREE.AdditiveBlending, depthWrite:false })));
-  G.userData._isPanel = true; G.userData._static = true; G.userData._panelType = 'workbench';
+  gr.rotation.x = -Math.PI/2; gr.position.set(-0.5,0.006,-0.3); G.add(gr);
+  G.userData._isPanel = true; G.userData._static = true; G.userData._panelType = 'workbench'; G.userData._desk = true;
   return G;
 }
 let _workbench = null;
@@ -7441,14 +7474,19 @@ window.__xrBenchLock = function (lock) {
   _applyBenchLock();
   return _workbenchLocked;
 };
-window.__xrWorkbench = function (show) {
+window.__xrWorkbench = function (show, desk) {
   if (show === false) {
     if (_workbench) { const i = _panels.indexOf(_workbench); if (i >= 0) _panels.splice(i, 1);
       scene.remove(_workbench); _workbench.traverse(o=>{ o.geometry?.dispose?.(); o.material?.map?.dispose?.(); o.material?.dispose?.(); }); _workbench = null; }
     return false;
   }
   if (!renderer.xr.isPresenting) return false;
-  if (!_workbench) _workbench = _makeWorkbench();
+  desk = !!desk;
+  if (_workbench && _workbench.userData._desk !== desk) {   // mode changed (flat <-> L-desk) -> rebuild
+    const i = _panels.indexOf(_workbench); if (i >= 0) _panels.splice(i, 1);
+    scene.remove(_workbench); _workbench.traverse(o=>{ o.geometry?.dispose?.(); o.material?.map?.dispose?.(); o.material?.dispose?.(); }); _workbench = null;
+  }
+  if (!_workbench) _workbench = _makeWorkbench(desk);
   _workbench.position.set(root.position.x, root.position.y, root.position.z);   // under the hologram
   try { const bp = JSON.parse(localStorage.getItem('benchPos') || 'null'); if (bp && _workbenchLocked) _workbench.position.fromArray(bp); } catch(_){}
   if (!_workbench.parent) scene.add(_workbench);
@@ -7841,7 +7879,7 @@ function _updateARNebula(time) {
   m.size = 0.019 * (1 + spk * 0.8 + Math.sin(t * 2.0) * 0.04);
   m.opacity = Math.min(1, 0.94 + Math.sin(t * 0.9) * 0.03 + spk * 0.08);
 }
-let _cmdRoomT = 0;
+let _cmdRoomT = 0, _warRoomT = 0;   // SEPARATE debounce timers: the war room and the command room are distinct deploys
 window.__xrCommandRoom = function () {
   if (!renderer.xr.isPresenting) return false;
   if (performance.now() - _cmdRoomT < 2500) return true;   // debounce: pending staggered spawns from a prior call would stack panels/emblems
@@ -7892,8 +7930,8 @@ window.__xrCommandRoom = function () {
 // the globe and the world's data curves around you. Reuses the table, globe, panel + ripple systems. =========
 window.__xrWarRoom = function () {
   if (!renderer.xr.isPresenting) return false;
-  if (performance.now() - _cmdRoomT < 2500) return true;   // debounce staggered spawns
-  _cmdRoomT = performance.now();
+  if (performance.now() - _warRoomT < 2500) return true;   // debounce staggered spawns (own timer, not the command-room one)
+  _warRoomT = performance.now();
   try { window.__diag && window.__diag('WAR-ROOM'); } catch(_){}
   window.__h3dDismissPanels();
   const cam = renderer.xr.getCamera();
@@ -8865,7 +8903,7 @@ window.__xrForge = function (show) {
   }
   if (!renderer.xr.isPresenting) return false;
   try {
-    try { window.__xrWorkbench && window.__xrWorkbench(true); } catch(_){}   // the bench is part of the forge
+    try { window.__xrWorkbench && window.__xrWorkbench(true, true); } catch(_){}   // FORGE: the bench becomes the floor-standing L-desk
     const cam = renderer.xr.getCamera(); const camPos = new THREE.Vector3(); cam.getWorldPosition(camPos);
     const up = new THREE.Vector3(0,1,0);
     let rackPos;
@@ -8903,27 +8941,19 @@ window.__xrForge = function (show) {
     scene.add(arm);
     arm.userData.nav.home = dumeSpot.clone(); arm.userData.nav.tx = dumeSpot.x; arm.userData.nav.tz = dumeSpot.z; arm.userData.nav.state = 'wander';   // rolls in to the spot
     // WORKBENCH: centre it in the forge, at a comfortable hand-height reach (user request)
-    try { if (_workbench) { const bc = camPos.clone().addScaledVector(bfwd, 0.7); _workbench.position.set(bc.x, camPos.y - 0.5, bc.z);
+    try { if (_workbench) { const bc = camPos.clone().addScaledVector(bfwd, 0.7);
+      const _dkFloor = (typeof _forgeFloorY === 'function' ? _forgeFloorY(camPos) : camPos.y - 1.1);
+      _workbench.position.set(bc.x, _dkFloor + _DESK_H, bc.z);   // desk TOP at floor+DESK_H so the legs land on the real floor
       const dFace = new THREE.Vector3().subVectors(bc, camPos); dFace.y = 0; dFace.normalize();   // yaw the L-desk to face the user
-      _workbench.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), dFace, up));   // its +Z front + props now align
+      _workbench.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), dFace, up));   // its +Z front faces you
       try { localStorage.setItem('benchPos', JSON.stringify(_workbench.position.toArray())); } catch(_){}
       if (window._h3d && window._h3d.cur) _placeRootOnBench(); } } catch(_){}
     // Stark-lab ENVIRONMENT: projector floor-grid + motes + Hall of Armor + light columns around the bench
     let env = null;
     try { const floorY = arm.position.y, benchCtr = camPos.clone().addScaledVector(bfwd, 0.95);
       env = _makeForgeEnvironment(floorY, benchCtr, bfwd, bright, _forgeRoom); scene.add(env); } catch(_){}
-    // PREMIUM PROP TABLEAU: iconic Stark relics on the bench top, facing the user (arc reactor centre,
-    // faceplate cradle left, repulsor gauntlet right, exploded holo schematic floating above).
-    let props = null;
-    try { props = _makeForgeProps();
-      const bt = _workbench ? _workbench.position.clone() : camPos.clone().addScaledVector(bfwd, 0.7);
-      const pFace = new THREE.Vector3().subVectors(bt, camPos); pFace.y = 0; pFace.normalize();   // +Z ends up facing the user
-      props.position.copy(bt);
-      props.quaternion.setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), pFace, up));
-      scene.add(props);
-      window._forgePropItems = (props.userData.A && props.userData.A.items) || [];   // grabbable only when unlocked
-      if (window._forgePropsMovable === undefined) window._forgePropsMovable = false;
-    } catch(_){}
+    // (Removed the bench "relic" props -- reactor/helmet/gauntlet/holo -- per user: too big, cluttered the desk.)
+    const props = null; window._forgePropItems = [];
     _forge = { rack, group, arm, env, props };
     try { window.__xrParticleBurst && window.__xrParticleBurst(rackPos); } catch(_){}
     try { window.speak(_forgeWall ? pick(['Forge online, sir. Racked to your wall.','Workshop bay ready, sir.']) : 'Forge online, sir. Scan the room to pin it to your wall.', 'confident'); } catch(_){}
@@ -9902,6 +9932,91 @@ window.__xrHudGet = function (axis) {
 let _hudRedrawT = 0;
 // FACEPLATE boot: set on sessionstart -> _drawHUD runs a one-time staggered power-on reveal.
 let _hudBootT = 0;
+// FRIDAY MINIMAL MODE -- a calm ON/OFF mode that strips the busy Stark chrome (grid, brackets, status bar,
+// telemetry, ladders) down to a whisper-thin reticle + a soft breathing glow. Persisted. Toggle by voice.
+let _hudMinimal = false; try { _hudMinimal = localStorage.getItem('fridayMinimal') === '1'; } catch(_){}
+window.__xrFridayMode = function (on) {   // FRIDAY / minimal HUD toggle (voice)
+  _hudMinimal = (on == null) ? !_hudMinimal : !!on;
+  try { localStorage.setItem('fridayMinimal', _hudMinimal ? '1' : '0'); } catch(_){}
+  return _hudMinimal;
+};
+// COMBAT VISOR -- an ISOLATED in-helmet HUD mode. It's just an alternate DRAW inside _drawHUD (gated by this
+// flag); it touches NOTHING else -- turn it off and the standard HUD renders exactly as before. Head pitch/roll
+// (for the artificial horizon) are read in _positionHUD.
+let _combatOn = false; try { _combatOn = localStorage.getItem('combatVisor') === '1'; } catch(_){}
+let _combatT0 = 0, _camPitch = 0, _camRoll = 0;
+window.__xrCombatVisor = function (on) {
+  const was = _combatOn;
+  _combatOn = (on == null) ? !_combatOn : !!on;
+  if (_combatOn && !was) _combatT0 = performance.now();   // power-on sweep
+  try { localStorage.setItem('combatVisor', _combatOn ? '1' : '0'); } catch(_){}
+  return _combatOn;
+};
+// COMBAT VISOR draw -- an ORIGINAL in-helmet combat overlay (no copyrighted assets): an artificial horizon
+// that banks with your head, a bracket target-lock reticle, a corner radar sweep, alt/spd telemetry ladders,
+// drifting contact tags, and a systems bar. Everything procedural + additive; drawn only when _combatOn.
+function _drawCombatHUD(ctx, W, H, cx, cy, A, Am) {
+  const t = performance.now(), boot = _combatT0 ? Math.min(1, (t - _combatT0) / 900) : 1;
+  ctx.save(); ctx.globalAlpha = boot;
+  // ---- ARTIFICIAL HORIZON (banks with head roll, slides with pitch) ----
+  ctx.save(); ctx.translate(cx, cy + Math.max(-260, Math.min(260, _camPitch * 520))); ctx.rotate(-_camRoll);
+  ctx.strokeStyle = A+'0.5)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-380,0); ctx.lineTo(-95,0); ctx.moveTo(95,0); ctx.lineTo(380,0); ctx.stroke();
+  ctx.font = '600 12px "JetBrains Mono", monospace'; ctx.textAlign='center';
+  for (let p=-30;p<=30;p+=10){ if(!p) continue; const yy=-p*9; ctx.strokeStyle=A+'0.3)'; ctx.fillStyle=A+'0.4)'; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.moveTo(-130,yy); ctx.lineTo(-80,yy); ctx.moveTo(80,yy); ctx.lineTo(130,yy); ctx.stroke();
+    ctx.fillText(String(Math.abs(p)), -150, yy); ctx.fillText(String(Math.abs(p)), 150, yy); }
+  ctx.restore();
+  // ---- TARGET-LOCK RETICLE (centre) -- brackets close in; AMBER lock when a surface is locked ----
+  const locked = _hudLocked, RC = locked ? Am : A, spin = t*0.0007;
+  ctx.strokeStyle = RC+'0.9)'; ctx.lineWidth = 2; const L = 20, g = 9;
+  for (const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]) {
+    ctx.beginPath(); ctx.moveTo(cx+sx*g, cy+sy*(g+L)); ctx.lineTo(cx+sx*g, cy+sy*g); ctx.lineTo(cx+sx*(g+L), cy+sy*g); ctx.stroke(); }
+  ctx.strokeStyle = RC+'0.8)'; ctx.lineWidth = 2.2;
+  for (let i=0;i<6;i++){ const a=i*Math.PI/3+spin; ctx.beginPath(); ctx.arc(cx,cy,30,a+0.12,a+Math.PI/3-0.30); ctx.stroke(); }
+  ctx.fillStyle = RC+'1)'; ctx.beginPath(); ctx.arc(cx,cy,2.2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = RC+'0.9)'; ctx.font='700 12px "JetBrains Mono", monospace'; ctx.textAlign='center';
+  try{ctx.letterSpacing='3px';}catch(_){}
+  ctx.fillText(locked ? 'LOCK' : 'TRACKING', cx, cy+52);
+  if (locked){ ctx.fillStyle=Am+'0.6)'; ctx.font='500 10px "JetBrains Mono", monospace'; ctx.fillText(_hudLockDist.toFixed(1)+' M', cx, cy+66); }
+  try{ctx.letterSpacing='0px';}catch(_){}
+  // ---- CONTACT TAGS (drifting brackets in the periphery -- cosmetic threat tracks) ----
+  ctx.font='600 11px "JetBrains Mono", monospace'; ctx.lineWidth=1.4;
+  for (let i=0;i<3;i++){ const px=cx+Math.sin(t*0.0003+i*2.1)*(W*0.30)+ (i-1)*90, py=cy+Math.cos(t*0.00023+i*1.7)*(H*0.22)-40*i+30;
+    ctx.strokeStyle=A+'0.5)'; ctx.fillStyle=A+'0.45)';
+    ctx.strokeRect(px-16, py-12, 32, 24);
+    ctx.textAlign='left'; ctx.fillText('CT-'+(i+1), px+22, py-2); ctx.fillText((1.2+i*0.7).toFixed(1)+'km', px+22, py+12); }
+  // ---- RADAR SWEEP (bottom-left) ----
+  const rx=W*0.13, ry=H*0.80, rr=72;
+  ctx.strokeStyle=A+'0.5)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(rx,ry,rr,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle=A+'0.22)'; ctx.beginPath(); ctx.arc(rx,ry,rr*0.6,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(rx-rr,ry); ctx.lineTo(rx+rr,ry); ctx.moveTo(rx,ry-rr); ctx.lineTo(rx,ry+rr); ctx.stroke();
+  const sw=t*0.002; const grad=ctx.createLinearGradient(rx,ry, rx+Math.cos(sw)*rr, ry+Math.sin(sw)*rr);
+  grad.addColorStop(0,A+'0.55)'); grad.addColorStop(1,A+'0)'); ctx.strokeStyle=grad; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx+Math.cos(sw)*rr, ry+Math.sin(sw)*rr); ctx.stroke();
+  for (let i=0;i<3;i++){ const a=i*2.2+t*0.0004, d=rr*(0.3+0.2*i); ctx.fillStyle=(i===0?Am:A)+'0.85)'; ctx.beginPath(); ctx.arc(rx+Math.cos(a)*d, ry+Math.sin(a)*d, 2.4, 0, Math.PI*2); ctx.fill(); }
+  ctx.fillStyle=A+'0.4)'; ctx.textAlign='center'; ctx.font='500 10px "JetBrains Mono", monospace'; ctx.fillText('RADAR', rx, ry+rr+16);
+  // ---- TELEMETRY LADDERS (alt left, spd right) ----
+  const alt = 12000 + Math.round(Math.sin(t*0.0004)*400), spd = 640 + Math.round(Math.sin(t*0.0007)*30);
+  ctx.textAlign='right'; ctx.strokeStyle=A+'0.35)';
+  ctx.font='600 12px "JetBrains Mono", monospace';
+  for (let k=-3;k<=3;k++){ const yy=cy+k*34; ctx.fillStyle=A+(k===0?'0.9)':'0.35)'); ctx.beginPath(); ctx.moveTo(60,yy); ctx.lineTo(60+(k===0?22:12),yy); ctx.stroke(); ctx.fillText(String(alt - k*100), 54, yy); }
+  ctx.fillStyle=A+'0.5)'; ctx.font='600 11px "JetBrains Mono", monospace'; ctx.fillText('ALT', 60, cy-130);
+  ctx.textAlign='left';
+  for (let k=-3;k<=3;k++){ const yy=cy+k*34; ctx.fillStyle=A+(k===0?'0.9)':'0.35)'); ctx.beginPath(); ctx.moveTo(W-60,yy); ctx.lineTo(W-60-(k===0?22:12),yy); ctx.stroke(); ctx.fillText(String(spd - k*5), W-54, yy); }
+  ctx.fillStyle=A+'0.5)'; ctx.fillText('SPD', W-84, cy-130);
+  // ---- TOP + BOTTOM BARS ----
+  ctx.textAlign='left'; ctx.fillStyle=Am+'0.92)'; ctx.font='700 20px "JetBrains Mono", monospace';
+  try{ctx.letterSpacing='3px';}catch(_){} ctx.fillText('COMBAT VISOR', 60, 44); try{ctx.letterSpacing='0px';}catch(_){}
+  ctx.fillStyle=A+'0.5)'; ctx.font='600 12px "JetBrains Mono", monospace'; ctx.fillText('MK-VII // WEAPONS HOT', 60, 66);
+  ctx.textAlign='center'; ctx.fillStyle=A+'0.6)'; ctx.font='600 12px "JetBrains Mono", monospace';
+  const pwr = 88 + Math.round(Math.sin(t*0.0005)*8);
+  ctx.fillText('PWR '+pwr+'%   THR 100%   INTEG 100%   REPULSOR ARMED', cx, H-34);
+  // ---- POWER-ON SWEEP ----
+  if (boot < 1) { const sy=H*boot; const gg=ctx.createLinearGradient(0,sy-50,0,sy+6); gg.addColorStop(0,A+'0)'); gg.addColorStop(1,A+'0.5)');
+    ctx.fillStyle=gg; ctx.fillRect(0,sy-50,W,56); ctx.strokeStyle=A+'0.9)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(W,sy); ctx.stroke(); }
+  ctx.restore();
+}
 // Gaze-lock state, computed in _positionHUD from the WebXR hit-test (honest: Quest 2 locks onto
 // detected SURFACES/planes, it can't recognise arbitrary objects -- no depth sensor on Q2).
 let _hudLocked = false, _hudLockDist = 0;
@@ -9944,6 +10059,19 @@ function _drawHUD() {
   glow.addColorStop(0, A+'0)'); glow.addColorStop(0.5, A+'0.025)'); glow.addColorStop(0.74, A+'0.09)'); glow.addColorStop(0.9, 'rgba(96,218,255,0.22)'); glow.addColorStop(1, 'rgba(72,210,255,0.46)');
   ctx.fillStyle = glow; ctx.fillRect(-W, -H/sqY, W*2, H*2/sqY);
   ctx.restore(); ctx.globalAlpha = 1;
+  // COMBAT VISOR: an isolated in-helmet mode -- replace the standard readout with the combat HUD (drawn over the
+  // helmet vignette). Off -> this branch never runs -> the standard HUD renders exactly as before.
+  if (_combatOn && bootDone) { _drawCombatHUD(ctx, W, H, cx, cy, A, Am); _hudTex.needsUpdate = true; return; }
+  // FRIDAY MINIMAL MODE: keep only the calm ambient wash above -- a whisper-thin reticle + a soft breathing
+  // glow, then bail before ALL the busy chrome (grid / brackets / status / telemetry / ladders / full reticle).
+  if (_hudMinimal && bootDone) {
+    const br = 0.5 + 0.5*Math.sin(performance.now()*0.0016);
+    ctx.strokeStyle = A+(0.16+0.12*br).toFixed(3)+')'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx,cy,10,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle = A+(0.5+0.3*br).toFixed(3)+')'; ctx.beginPath(); ctx.arc(cx,cy,1.6,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = A+'0.2)'; ctx.lineWidth = 1;
+    for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { ctx.beginPath(); ctx.moveTo(cx+dx*16,cy+dy*16); ctx.lineTo(cx+dx*22,cy+dy*22); ctx.stroke(); }
+    _hudTex.needsUpdate = true; return;
+  }
   // EXTERIOR SCANNING GRID -- DIM (value hierarchy: this is background texture, not signal)
   const gs = 32, fade = 240; ctx.lineWidth = 1;
   for (let x = 0; x <= W; x += gs) { const a = 0.17*bGrid*(1-Math.min(1,Math.min(x,W-x)/fade)); if (a<0.012) continue; ctx.strokeStyle=A+a.toFixed(3)+')'; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
@@ -10052,7 +10180,7 @@ function _drawHUD() {
   }
   _hudTex.needsUpdate = true;
 }
-const _hudFwd = new THREE.Vector3(), _hudCamPos = new THREE.Vector3(), _hudRight = new THREE.Vector3(), _hudUp = new THREE.Vector3();
+const _hudFwd = new THREE.Vector3(), _hudCamPos = new THREE.Vector3(), _hudRight = new THREE.Vector3(), _hudUp = new THREE.Vector3(), _hudEuler = new THREE.Euler();
 function _positionHUD() {
   if (!renderer.xr.isPresenting) { _hudPlane.visible = false; return; }
   _hudPlane.visible = true;
@@ -10078,6 +10206,7 @@ function _positionHUD() {
   _hudFwd.set(0, 0, -1).applyQuaternion(cam.quaternion);
   _hudPlane.position.copy(_hudCamPos).addScaledVector(_hudFwd, D);   // cap centre D ahead; the cap geometry carries the wrap
   _hudPlane.quaternion.copy(cam.quaternion);
+  if (_combatOn) { _hudEuler.setFromQuaternion(cam.quaternion, 'YXZ'); _camPitch = _hudEuler.x; _camRoll = _hudEuler.z; }   // for the combat artificial horizon
   // GAZE-LOCK: honest surface lock off the WebXR hit-test reticle (Quest 2 has no depth sensor, so
   // this locks onto detected planes/surfaces, not recognised objects). Feeds the reticle LOCK state.
   if (_hitTestReticle && _hitTestReticle.visible) { _hudLocked = true; _hudLockDist = _hitTestReticle.position.distanceTo(_hudCamPos); }
@@ -10253,24 +10382,26 @@ function _positionDataStream(time) {
 }
 
 // #50 CYAN RIPPLE ON WRIST BUTTON TAP -- expanding ring
+// RIPPLE: a quick expanding cyan ring. CRITICAL: window.requestAnimationFrame is FROZEN inside an immersive
+// XR session, so the old rAF-driven version NEVER animated or disposed -- every ripple left a permanent tiny
+// blue ring that piled up ("random blue circles everywhere"). Now driven by the XR render loop (_updateRipples),
+// with a hard cap so it can never accumulate.
+const _ripples = []; const _rippleV = new THREE.Vector3();
 window.__xrRipple = function(pos) {
-  const g = new THREE.RingGeometry(0.005, 0.008, 32);
-  const m = new THREE.MeshBasicMaterial({ color: 0x7fefff, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
-  const ring = new THREE.Mesh(g, m);
-  ring.position.copy(pos);
-  scene.add(ring);
-  const cam = renderer.xr.getCamera();
-  ring.lookAt(cam.getWorldPosition(new THREE.Vector3()));
-  const START = performance.now();
-  const tick = () => {
-    const t = (performance.now() - START) / 500;
-    if (t >= 1) { scene.remove(ring); g.dispose(); m.dispose(); return; }
-    ring.scale.setScalar(1 + t * 8);
-    m.opacity = 0.9 * (1 - t);
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
+  const g = new THREE.RingGeometry(0.005, 0.008, 20);
+  const m = new THREE.MeshBasicMaterial({ color: 0x7fefff, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false });
+  const ring = new THREE.Mesh(g, m); ring.position.copy(pos);
+  try { ring.lookAt(renderer.xr.getCamera().getWorldPosition(_rippleV)); } catch(_){}
+  scene.add(ring); _ripples.push({ ring, t0: performance.now() });
+  while (_ripples.length > 16) { const o = _ripples.shift(); scene.remove(o.ring); o.ring.geometry.dispose(); o.ring.material.dispose(); }
 };
+function _updateRipples() {
+  for (let i = _ripples.length - 1; i >= 0; i--) {
+    const r = _ripples[i], t = (performance.now() - r.t0) / 500;
+    if (t >= 1) { scene.remove(r.ring); r.ring.geometry.dispose(); r.ring.material.dispose(); _ripples.splice(i, 1); continue; }
+    r.ring.scale.setScalar(1 + t * 8); r.ring.material.opacity = 0.9 * (1 - t);
+  }
+}
 
 // ==== H. PHYSICS 51-55 ============================================================
 
@@ -11283,11 +11414,12 @@ renderer.setAnimationLoop((time) => {
     _updateFingertips();   // 1e-filter both index tips ONCE -> poke/wrist/palm all read the smoothed point
     _updateXRGrab();
     try { _slapUpdate(); _coastObjects(); } catch(_){}   // slap-to-knock physics + coast
+    try { _updateRipples(); } catch(_){}                  // expand+fade ripple rings (rAF is frozen in XR)
     _updateHandCommands();
     _positionReactor();
     _positionHUD();                                                                    // head-locked every frame (no lag)
     // canvas redraw throttled to ~2fps -- EXCEPT during the FACEPLATE boot reveal (first 1.4s) or a fresh lock, when it runs every frame
-    if (!_hudRedrawT || time - _hudRedrawT > 500 || (_hudBootT && performance.now() - _hudBootT < 1500) || _hudLocked) { _drawHUD(); _hudRedrawT = time; }
+    if (!_hudRedrawT || time - _hudRedrawT > (_combatOn ? 90 : _hudMinimal ? 130 : 500) || (_hudBootT && performance.now() - _hudBootT < 1500) || _hudLocked) { _drawHUD(); _hudRedrawT = time; }
     _updateEarthProjector();                                                           // spin globe + drift scanlines + rise particles
     if (_h3dMixer) _h3dMixer.update(_h3dClock.getDelta());                             // rigged-model animation
     _positionWristPanel();
