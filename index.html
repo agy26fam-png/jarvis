@@ -8806,19 +8806,20 @@ function _hallAnchor() {   // lay out every niche: backed against the REAL room 
   const fy = (typeof _forgeFloorY === 'function' ? _forgeFloorY(_dumeCam) : _dumeCam.y - 1.55);
   const niches = _hall.userData.niches, N = niches.length; if (!N) return;
   const R = _forgeRoom;
-  // ROOM MODE: stand the suits against the real walls, spread evenly around the whole perimeter, facing the centre.
+  // ROOM MODE: line every suit up along the room's LONGEST wall (the one farther from you), facing into the room.
   if (R && (R.maxX - R.minX) > 1.8 && (R.maxZ - R.minZ) > 1.8) {
     _hall.position.set(0, fy, 0); _hall.rotation.y = 0;                          // niches placed in WORLD space
-    const M = 0.75, x0 = R.minX + M, x1 = R.maxX - M, z0 = R.minZ + M, z1 = R.maxZ - M;
-    const wx = Math.max(0.1, x1 - x0), wz = Math.max(0.1, z1 - z0), per = 2 * (wx + wz);
-    for (let i = 0; i < N; i++) {
-      const d = ((i + 0.5) / N) * per; let x, z;
-      if (d < wx)              { x = x0 + d;              z = z0; }             // wall along -Z
-      else if (d < wx + wz)    { x = x1;                  z = z0 + (d - wx); }  // wall along +X
-      else if (d < 2*wx + wz)  { x = x1 - (d - wx - wz);  z = z1; }             // wall along +Z
-      else                     { x = x0;                  z = z1 - (d - 2*wx - wz); }  // wall along -X
-      niches[i].position.set(x, 0, z);
-      niches[i].rotation.y = Math.atan2(R.cx - x, R.cz - z);                     // +Z (figure/plaque) faces the room centre
+    const M = 0.6;
+    if ((R.maxX - R.minX) >= (R.maxZ - R.minZ)) {                                // longest walls run along X -> pick the far one
+      const zWall = (Math.abs(_dumeCam.z - R.minZ) >= Math.abs(_dumeCam.z - R.maxZ)) ? R.minZ : R.maxZ;
+      const inward = (zWall === R.minZ) ? 1 : -1, z = zWall + inward*M;
+      const x0 = R.minX + M, w = Math.max(0.1, (R.maxX - M) - x0);
+      for (let i = 0; i < N; i++) { niches[i].position.set(x0 + ((i+0.5)/N)*w, 0, z); niches[i].rotation.y = inward > 0 ? 0 : Math.PI; }
+    } else {                                                                     // longest walls run along Z -> pick the far one
+      const xWall = (Math.abs(_dumeCam.x - R.minX) >= Math.abs(_dumeCam.x - R.maxX)) ? R.minX : R.maxX;
+      const inward = (xWall === R.minX) ? 1 : -1, x = xWall + inward*M;
+      const z0 = R.minZ + M, w = Math.max(0.1, (R.maxZ - M) - z0);
+      for (let i = 0; i < N; i++) { niches[i].position.set(x, 0, z0 + ((i+0.5)/N)*w); niches[i].rotation.y = inward > 0 ? Math.PI/2 : -Math.PI/2; }
     }
     return;
   }
