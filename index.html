@@ -6364,6 +6364,7 @@ function _positionPalmMenu() {
   // anchor at palm centre, floated slightly toward the viewer, billboarded to the camera for legibility
   _palmPanel.position.copy(_palmCtr).addScaledVector(_palmToCam, 0.03);
   _palmPanel.quaternion.copy(renderer.xr.getCamera().quaternion);
+  _palmPanel.updateWorldMatrix(false, false);   // #14: fresh world matrix so the poke tile hit-test reads THIS frame's pose
   const s = 0.85 + 0.15 * _palmVis; _palmPanel.scale.setScalar(s);
 }
 function _palmEligible() {
