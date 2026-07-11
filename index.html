@@ -1863,11 +1863,11 @@ const MODELS={
     spec:[['CLASS','EVA'],['LICENSE','CC-BY'],['FORMAT','GLTF'],['SIZE','4.5 MB'],['MODE','WIREFRAME']],
     parts:{visor:/(?<![a-z])(?:visor|glass|lens|eye)s?(?![a-z])/i,frame:/(?<![a-z])(?:frame|shell|body|helmet)s?(?![a-z])/i,
            vents:/(?<![a-z])(?:vent|grill|intake)s?(?![a-z])/i}},
-  espresso:{title:'ESPRESSO MACHINE',sub:'APPLIANCE / THREE.JS EXAMPLE / CC',
-    url:'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/models/gltf/coffeemat.glb',
-    spec:[['TYPE','BARISTA'],['LICENSE','CC-BY'],['FORMAT','GLB'],['SIZE','4.8 MB'],['MODE','WIREFRAME']],
-    parts:{boiler:/(?<![a-z])(?:boiler|tank|body)s?(?![a-z])/i,group:/(?<![a-z])(?:portafilter|group|spout|nozzle)s?(?![a-z])/i,
-           panel:/(?<![a-z])(?:panel|button|dial|gauge)s?(?![a-z])/i}},
+  parrot:{title:'PARROT',sub:'ANIMATED BIRD / THREE.JS EXAMPLE / MIT',
+    url:'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/models/gltf/Parrot.glb',
+    spec:[['MOTION','FLIGHT'],['LICENSE','MIT'],['FORMAT','GLB'],['SIZE','0.1 MB'],['MODE','WIREFRAME']],
+    parts:{wings:/(?<![a-z])(?:wing|feather)s?(?![a-z])/i,body:/(?<![a-z])(?:body|torso|chest)s?(?![a-z])/i,
+           head:/(?<![a-z])(?:head|beak|eye)s?(?![a-z])/i,tail:/(?<![a-z])tails?(?![a-z])/i}},
   city:{title:'VIRTUAL CITY',sub:'URBAN BLOCK / KHRONOS SAMPLE / CC',
     url:'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@main/2.0/VC/glTF-Binary/VC.glb',
     spec:[['SCALE','DISTRICT'],['LICENSE','CC-BY'],['FORMAT','GLB'],['SIZE','3.1 MB'],['MODE','WIREFRAME']],
@@ -2214,7 +2214,7 @@ async function pingBrain(){
     window._brainOK=false;
     // SELF-HEAL: a persisted brain URL that has gone stale/dead -> after 3 straight misses, forget it and
     // let auto-discovery re-find the live tunnel (so a dead saved URL can't sit falsely showing a link).
-    if((window._pingFails=(window._pingFails||0)+1)>=3){
+    if((window._pingFails=(window._pingFails||0)+1)>=3 && /trycloudflare|ngrok/.test(BRAIN||'')){
       BRAIN=''; window.BRAIN=''; try{window.__rediscoverBrain&&window.__rediscoverBrain();}catch(_){}   // KEEP the saved override (localStorage) so a blip can't permanently wipe it; rediscovery re-commits it
     }
   }
@@ -5905,7 +5905,7 @@ function _updateXRGrab() {
     // Release whatever was grabbed
     const cur = _grip.target;
     if (cur) {
-      if (cur === root) scene.attach(root);
+      if (cur === root) { scene.attach(root); if (window._h3d) { window._h3d.rotY = root.rotation.y; window._h3d.rotX = root.rotation.x; } }   // keep the pose the hand left
       else if (cur.userData?._activePartMd) _releaseActivePart(cur);
       else if (cur.userData?._spawnParent) _releaseSpawnPart(cur);
       else if (cur.userData?._isSpawn) scene.attach(cur);   // whole spawn was grabbed
@@ -7253,7 +7253,8 @@ window.__h3dDismissPanels = function() {
   }
   _panels.length = 0; if (keep.length) _panels.push(...keep);
   try { window.__xrNebula(false); } catch(_){}
-  try { if (_warTable) window.__xrWarTable && window.__xrWarTable(false); } catch(_){}   // war table + its globe are separate scene children -> a "clear" must remove them too, else they orphan
+  try { if (_warTable) window.__xrWarTable && window.__xrWarTable(false); } catch(_){}
+  try { if (_earthProj) window.__xrEarthProjector && window.__xrEarthProjector(false); } catch(_){}   // standalone globe is its own scene child -> a "clear" must tear it down too   // war table + its globe are separate scene children -> a "clear" must remove them too, else they orphan
 };
 // === HOLOGRAPHIC EARTH PROJECTOR -- the JARVIS signature centrepiece ========================
 // A realistic Earth globe (real blue-marble + topology relief) floating above a sci-fi emitter pad,
@@ -8678,7 +8679,7 @@ window.__xrDume = function (cmd) {   // DUM-E's brain: perform a real action + t
     else if (cmd === 'bump')  { u._bumped=false; window.speak && window.speak(pick(['Pow.','Nice one, sir.','Boop.']), 'confident'); }
     else if (cmd === 'light') { u.lightOn=true; window.speak && window.speak(pick(['Lighting the way, sir.','On it, sir.']), 'normal'); }
     else if (cmd === 'lightoff'){ u.lightOn=false; u.action=null; window.speak && window.speak('Lights off, sir.', 'normal'); }
-    else if (cmd === 'powerdown') { u.powered = false; u.action = null; window.speak && window.speak('Powering down, sir.', 'normal'); }
+    else if (cmd === 'powerdown') { u.powered = false; u.action = null; u.lightOn = false; u.filming = false; window.speak && window.speak('Powering down, sir.', 'normal'); }
     else if (cmd === 'powerup')   { u.powered = true;  u.action = null; window.speak && window.speak('Back online, sir.', 'confident'); }
     else if (cmd === 'film')  { u.filming = true;  u.lightOn = false; window.speak && window.speak(pick(['Rolling, sir.','Recording, sir.','You are on camera, sir.']), 'confident'); }
     else if (cmd === 'filmoff'){ u.filming = false; window.speak && window.speak(pick(['Cut, sir.','And we are clear, sir.']), 'normal'); }
@@ -8692,6 +8693,7 @@ window.__xrDume = function (cmd) {   // DUM-E's brain: perform a real action + t
 const _dumeCam = new THREE.Vector3(), _dumeFwd = new THREE.Vector3();
 function _dumeNavStep(u) {
   const nav = u.nav, arm = _forge.arm;
+  if (u.powered === false) { nav.wanderT = 0; if (nav.state === 'wander') nav.state = 'idle'; return false; }   // OFF: no autonomy roam, no travel
   if (nav.state === 'idle') {   // AUTONOMY: roam a little on his own every ~20s so he feels alive
     nav.wanderT = (nav.wanderT || 0) + 0.016;
     if (nav.wanderT > 20 && Math.random() < 0.01) { nav.wanderT = 0; const h = nav.home || arm.position;
@@ -8750,7 +8752,7 @@ function _dumeNavStep(u) {
 window.__xrDumeFetch = function () {   // "Dum-E, bring this to me" -> roll to the model, grab it, wheel it back
   if (!_forge || !_forge.arm) { try { window.speak && window.speak('The forge is offline, sir.', 'normal'); } catch(_){} return false; }
   if (!(window._h3d && window._h3d.cur) || typeof root === 'undefined' || !meshData.length) { try { window.speak && window.speak('Nothing to fetch, sir -- summon a model first.', 'normal'); } catch(_){} return false; }
-  const u = _forge.arm.userData, nav = u.nav;
+  const u = _forge.arm.userData, nav = u.nav; u.powered = true; u.sulk = false;   // a fetch wakes him, like every spatial command
   if (!nav.home) nav.home = _forge.arm.position.clone();
   root.getWorldPosition(_dumeTmp);
   const tx = _dumeTmp.x - _forge.arm.position.x, tz = _dumeTmp.z - _forge.arm.position.z, d = Math.hypot(tx,tz) || 1;
@@ -8833,7 +8835,7 @@ let _dumeReactT = 0;
 window._dumeReact = function (event) {
   if (!_forge || !_forge.arm) return;                       // only when he's equipped/present
   const u = _forge.arm.userData;
-  if (u.action || u.gripPhase || u.nav.state === 'goModel' || u.sulk) return;   // busy -> don't interrupt
+  if (u.action || u.gripPhase || u.nav.state === 'goModel' || u.sulk || u.powered === false) return;   // busy/off -> don't interrupt
   const now = performance.now();
   const gesture = (g) => { u.action = g; u.actionT0 = now; try { window.tone && window.tone(880, 0.05, 'sine', 0.03); } catch(_){} };
   if (event === 'success') {
@@ -9022,11 +9024,13 @@ function _updateForge() {
       new THREE.MeshBasicMaterial({ color:0xdff4ff, transparent:true, opacity:0.13, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide }));
       cone.rotation.x = -Math.PI/2; cone.position.set(0, 0.05, 0.95); u.head.add(cone); u.lightCone = cone; }
     u.lightCone.visible = true;
-    s1 = u.s1Base + 0.35; s2 = u.s2Base + 0.30; clawOpen = 0.6;
-    try { const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam); _forge.arm.getWorldPosition(_dumeTmp2);
-      let ly = Math.atan2(_dumeCam.x - _dumeTmp2.x, _dumeCam.z - _dumeTmp2.z) - _forge.arm.rotation.y;
-      while (ly > Math.PI) ly -= 2*Math.PI; while (ly < -Math.PI) ly += 2*Math.PI;
-      u.turn.rotation.y += (ly - u.turn.rotation.y) * 0.08; headX = -0.08; } catch(_){}
+    if (!u.action) {   // the hold pose yields to an in-progress gesture (nod/bump/...); the cone stays lit
+      s1 = u.s1Base + 0.35; s2 = u.s2Base + 0.30; clawOpen = 0.6;
+      try { const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam); _forge.arm.getWorldPosition(_dumeTmp2);
+        let ly = Math.atan2(_dumeCam.x - _dumeTmp2.x, _dumeCam.z - _dumeTmp2.z) - _forge.arm.rotation.y;
+        while (ly > Math.PI) ly -= 2*Math.PI; while (ly < -Math.PI) ly += 2*Math.PI;
+        u.turn.rotation.y += (ly - u.turn.rotation.y) * 0.08; headX = -0.08; } catch(_){}
+    }
   } else if (u.lightCone) u.lightCone.visible = false;
   // FILM ME: hold a steady 'camera' pose, aim the eye at you, and blink a red REC tally by the lens.
   if (u.filming && !u.gripPhase) {
@@ -9034,12 +9038,14 @@ function _updateForge() {
       new THREE.MeshBasicMaterial({ color:0xff3b3b, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false }));
       r.position.set(0.032, 0.02, 0.05); u.head.add(r); u.recLight = r; }
     u.recLight.visible = true; u.recLight.material.opacity = 0.45 + 0.55*Math.abs(Math.sin(u.t*4));   // blinking tally light
-    s1 = u.s1Base + 0.20; s2 = u.s2Base + 0.15; clawOpen = 0;   // steady, two-handed-camera hold
-    try { const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam); _forge.arm.getWorldPosition(_dumeTmp2);
-      let ly = Math.atan2(_dumeCam.x - _dumeTmp2.x, _dumeCam.z - _dumeTmp2.z) - _forge.arm.rotation.y;
-      while (ly > Math.PI) ly -= 2*Math.PI; while (ly < -Math.PI) ly += 2*Math.PI;
-      u.turn.rotation.y += (ly - u.turn.rotation.y) * 0.10;
-      headX = Math.max(-0.4, Math.min(0.4, -(_dumeCam.y - _dumeTmp2.y - 1.4) * 0.2)); } catch(_){}
+    if (!u.action) {   // the camera-hold pose yields to a gesture; the REC tally keeps blinking
+      s1 = u.s1Base + 0.20; s2 = u.s2Base + 0.15; clawOpen = 0;
+      try { const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam); _forge.arm.getWorldPosition(_dumeTmp2);
+        let ly = Math.atan2(_dumeCam.x - _dumeTmp2.x, _dumeCam.z - _dumeTmp2.z) - _forge.arm.rotation.y;
+        while (ly > Math.PI) ly -= 2*Math.PI; while (ly < -Math.PI) ly += 2*Math.PI;
+        u.turn.rotation.y += (ly - u.turn.rotation.y) * 0.10;
+        headX = Math.max(-0.4, Math.min(0.4, -(_dumeCam.y - _dumeTmp2.y - 1.4) * 0.2)); } catch(_){}
+    }
   } else if (u.recLight) u.recLight.visible = false;
   // FETCH GRIP POSE overrides the idle sway ONLY during a "bring this to me" (gripPhase set) -- so this can't
   // disturb DUM-E's normal idle. reach/grip = bend the boom DOWN-forward with the claw open, then closed;
@@ -9262,6 +9268,7 @@ window.__xrForge = function (show) {
   }
   if (!renderer.xr.isPresenting) return false;
   try {
+    if (_forge) return true;   // idempotent: a repeat "forge" no-ops instead of orphaning the live forge
     try { window.__xrWorkbench && window.__xrWorkbench(true, true); } catch(_){}   // FORGE: the bench becomes the floor-standing L-desk
     const cam = renderer.xr.getCamera(); const camPos = new THREE.Vector3(); cam.getWorldPosition(camPos);
     const up = new THREE.Vector3(0,1,0);
@@ -11758,20 +11765,21 @@ function applyExplode(amount) {
 // Here we run it in AR: rotation goes on `root` (no camera-orbit in AR); explode moves the parts inside
 // root; and a one-hand PINCH within the model's radius rotates it by drag, exactly like the globe.
 let _modelPinchPrev = null;
+const _xmCenter = new THREE.Vector3();   // module-scope temp for _updateXRModel (was using an out-of-scope _c -> ReferenceError/frame)
 function _updateXRModel() {
   const _h3d = window._h3d;
   if (!_h3d || !_h3d.cur || typeof root === 'undefined' || !meshData.length) return;
   // root is "owned" (don't fight it) while a fist drags it OR while DUM-E is carrying it in his claw
   const owned = (_grip.target === root) || (_forge && _forge.arm && _forge.arm.userData.nav.carried === root);
   let rotating = false;
-  if (!owned) {
-    root.getWorldPosition(_c); _c.y += (window._modelHalfHeight || modelSize*0.2) * root.scale.y;   // model centre
+  if (!owned && !_drawMode && !_arMeasure) {
+    root.getWorldPosition(_xmCenter); _xmCenter.y += (window._modelHalfHeight || modelSize*0.2) * root.scale.y;   // model centre
     const rad = Math.max(0.30, (window._modelHalfHeight || modelSize*0.2) * root.scale.y * 1.6 + 0.14);
     for (let h = 0; h < 2; h++) {
       const hand = _xrHands[h]; if (!hand) continue;
       if (_handClosed(hand)) continue;   // a fist is the MOVE channel; pinch is the ROTATE channel
       const pp = _pinchPoint(hand);
-      if (pp && pp.pinching && pp.p.distanceTo(_c) < rad) {
+      if (pp && pp.pinching && pp.p.distanceTo(_xmCenter) < rad) {
         if (_modelPinchPrev) {   // DRAG -> turn it (feeds the same _h3d.rotY/rotX the desktop mouse uses)
           const dx = pp.p.x - _modelPinchPrev.x, dy = pp.p.y - _modelPinchPrev.y, mag = Math.hypot(dx, dy);
           if (mag > 0.0004 && mag < 0.06) {   // deadzone kills idle jitter; jump-clamp skips a tracking pop
