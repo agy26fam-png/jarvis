@@ -1079,39 +1079,38 @@ function _handSVG(f){
   return s;
 }
 const GESTURE_GUIDE=[
-  {grp:'MOVE  (index-finger + thumb pinch)',items:[
-    {h:{pinch:1,index:1,thumb:1},t:'PINCH + DRAG',d:'Grab & move a hologram, part, or panel. One hand.'},
-    {h:{pinch:1,index:1,thumb:1},t:'TWO-HAND PINCH',d:'Both hands pinch + spread = scale bigger / smaller.'},
-    {h:{claw:1},t:'CLAWS APART',d:'Both claws together on the model, pull apart = EXPLODE.'},
+  {grp:'TOUCH & GRAB  (hands)',items:[
+    {h:{index:1},t:'POKE',d:'Touch buttons, tiles and sliders with your fingertip. Poke to press — never pinch.'},
+    {h:{},t:'FIST + MOVE',d:'Close a fist on a hologram, panel or object to grab and move it. One hand.'},
+    {h:{pinch:1,index:1,thumb:1},t:'PINCH + DRAG',d:'Pinch on a model or the globe and drag to turn / spin it in place.'},
+    {h:{pinch:1,index:1,thumb:1},t:'TWO-HAND PINCH',d:'Both hands pinch, then spread or squeeze to scale bigger / smaller.'},
+    {h:{index:1,middle:1,ring:1,pinky:1,thumb:1},t:'SLAP',d:'Swing an open hand into a model to knock it away — it coasts and settles.'},
+    {h:{index:1},t:'POINT + FIST',d:'Aim the finger-ray at a far panel, then close your fist to grab it.'},
   ]},
-  {grp:'COMMANDS  (middle-finger + thumb pinch)',items:[
-    {h:{middle:1,thumb:1,tag:'L'},t:'LEFT HOLD',d:'Push-to-talk — speak, release to send. No wake word.'},
-    {h:{middle:1,thumb:1,tag:'L'},t:'LEFT DOUBLE-TAP',d:'Next hologram in the library.'},
-    {h:{middle:1,thumb:1,tag:'R'},t:'RIGHT DOUBLE-TAP',d:'Deploy / clear the command room.'},
-    {h:{middle:1,thumb:1,tag:'R'},t:'RIGHT HOLD',d:'Workshop mode — explode + inspect.'},
-    {h:{middle:1,thumb:1},t:'BOTH HOLD',d:'Recenter the workspace on your view.'},
-    {h:{},t:'BOTH FISTS',d:'Clear everything — panels, hologram, drawings.'},
+  {grp:'HAND SIGNS  (right hand, hold ~1s)',items:[
+    {h:{index:1},t:'POINT',d:'Point-and-ask — highlight and query what you point at.'},
+    {h:{index:1,middle:1},t:'PEACE',d:'Screenshot the view.'},
+    {h:{ok:1,middle:1,ring:1,pinky:1},t:'OK',d:'Toggle blueprint mode.'},
+    {h:{thumb:1,index:1,pinky:1},t:'I-LOVE-YOU',d:'Reset the hologram to its default view.'},
+    {h:{index:1,middle:1,ring:1,pinky:1},t:'FOUR',d:'Deploy a set-piece.'},
   ]},
-  {grp:'SIGNS  (right hand, hold ~1 second)',items:[
-    {h:{index:1},t:'☝️ POINT',d:'Point-and-ask — highlight & query what you point at.'},
-    {h:{index:1,middle:1},t:'✌️ PEACE',d:'Screenshot the view.'},
-    {h:{index:1,pinky:1},t:'🤘 ROCK',d:'Toggle X-ray.'},
-    {h:{thumb:1,index:1,pinky:1},t:'🤟 LOVE',d:'Energy burst + ripple from your hand.'},
-    {h:{thumb:1,pinky:1},t:'🤙 SHAKA',d:"Cycle the hologram's skin."},
-    {h:{thumb:1,index:1},t:'👉 FINGER-GUN',d:'Toggle thermal view.'},
-    {h:{ok:1,middle:1,ring:1,pinky:1},t:'👌 OK',d:'Toggle blueprint mode.'},
-    {h:{index:1,middle:1,ring:1},t:'THREE',d:'Next hologram.'},
-    {h:{index:1,middle:1,ring:1,pinky:1},t:'FOUR',d:'Deploy set-piece.'},
+  {grp:'THE HOLOGRAM  (voice)',items:[
+    {h:{index:1},t:'"NEXT"',d:'Cycle to the next model, or name one: "show me the dragon".'},
+    {h:{claw:1},t:'"EXPLODE IT"',d:'Blow it into parts. "Reassemble" puts it back. "Half explode" etc.'},
+    {h:{index:1},t:'"SPIN IT" / "FREEZE"',d:'Auto-rotate or hold it. "Front / side / top / rear view".'},
+    {h:{index:1},t:'"CLEAR"',d:'Dismiss panels and drawings. "Bigger / smaller" resizes the model.'},
+  ]},
+  {grp:'SPACES & GUIDES  (voice)',items:[
+    {h:{index:1,middle:1,ring:1,pinky:1,thumb:1},t:'"SCAN THE ROOM"',d:'Maps your walls, floor and surfaces in wireframe.'},
+    {h:{index:1},t:'"FORGE" / "WAR TABLE"',d:'Open the workshop or the holographic command table.'},
+    {h:{index:1},t:'"HALL OF ARMOR"',d:'Line the suits up along your longest wall.'},
+    {h:{index:1},t:'"DUM-E GUIDE"',d:'Every DUM-E command. "Gesture guide" shows this sheet.'},
   ]},
   {grp:'AIR DRAW  (voice, while drawing)',items:[
     {h:{pinch:1,index:1,thumb:1},t:'SAY "DRAW MODE"',d:'Then pinch-drag to draw glowing strokes. "Stop drawing" to end.'},
     {h:{pinch:1,index:1,thumb:1},t:'SAY A COLOUR',d:'"Red / blue / gold / green / purple / white" changes the ink.'},
-    {h:{pinch:1,index:1,thumb:1},t:'SAY "THICKER / THINNER"',d:'Or "thin / medium / thick pen" to set brush size.'},
     {h:{claw:1},t:'SAY "ERASER"',d:'Then pinch a stroke to delete it. "Pen mode" to draw again.'},
     {h:{index:1},t:'SAY "UNDO"',d:'Removes the last stroke. "Clear the drawing" wipes all.'},
-  ]},
-  {grp:'ROOM  (voice)',items:[
-    {h:{index:1,middle:1,ring:1,pinky:1,thumb:1},t:'SAY "SCAN THE ROOM"',d:'Maps your walls, floor & surfaces in wireframe.'},
   ]},
 ];
 function showGestureGuide(){
@@ -1141,6 +1140,33 @@ function showGestureGuide(){
 }
 window.showGestureGuide=showGestureGuide;
 window.__GESTURE_GUIDE=GESTURE_GUIDE;   // shared with the module block for the in-AR panel
+const DUME_GUIDE=[
+  {grp:'FETCH & MOVE',items:[
+    {c:'"bring this to me"',d:'Rolls over, grabs the model in his claw and brings it to you.'},
+    {c:'"go over there"',d:'Point at a spot — he rolls there and waits until recalled.'},
+    {c:'"come back" / "come here"',d:'Returns to you.'},
+    {c:'"follow me" / "stop following"',d:'Trails you around, or holds.'},
+    {c:'"stay" / "wait"',d:'Holds his position until you call him.'},
+    {c:'"go home" / "dock"',d:'Rolls back to his parking spot.'},
+  ]},
+  {grp:'REACTIONS',items:[
+    {c:'"nod" / "yes"',d:'Nods yes.'},
+    {c:'"no" / "shake your head"',d:'Shakes his head no.'},
+    {c:'"what is it?" / "curious"',d:'Cocks his head, curious.'},
+    {c:'"dance" / "celebrate"',d:'Spins and flails happily.'},
+    {c:'"look here"',d:'Point — he turns to look where you point.'},
+    {c:'"fist bump" / "pound it"',d:'Puts the claw out for a bump.'},
+  ]},
+  {grp:'UTILITY & GAGS',items:[
+    {c:'"hold the light" / "lights off"',d:'Raises the claw and lights your work.'},
+    {c:'"film me" / "cut"',d:'Aims his camera-eye and records, with a REC tally.'},
+    {c:'"pour me a drink"',d:'Tilts the claw and pours a smoothie.'},
+    {c:'"fire extinguisher"',d:'The classic DUM-E fire-suppression gag.'},
+    {c:'"go to the corner" / "bad dum-e"',d:'Sulks off to a corner. Any command snaps him out.'},
+    {c:'"power down" / "wake up"',d:'Slumps offline, or comes back online.'},
+  ]},
+];
+window.__DUME_GUIDE=DUME_GUIDE;   // shared with the module block for the in-AR DUM-E panel
 function holoModelsShow(){
   const c=document.getElementById('h3dCheat');if(!c)return;
   c.classList.add('on','picker');
@@ -3726,6 +3752,11 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
       if(window.__drawUndo&&window.__drawUndo())speak("Undone, sir.","normal");
       else speak("Nothing to undo, sir.","normal");return;}
   }
+  // DUM-E GUIDE -- all of DUM-E's voice commands
+  if(/\b(dum-?e guide|dum-?e (?:commands?|controls?|help|list)|what can dum-?e do|dummy guide)\b/.test(t)){
+    if(window._xrPresenting&&window.__h3dSpawnPanelByName){window.__h3dSpawnPanelByName('dumeguide');speak("DUM-E's command list, sir. Pinch it to move it.","normal");}
+    else speak("Step into immersive mode first, sir — DUM-E lives in the forge.","normal");
+    return;}
   // GESTURE GUIDE -- visual cheat sheet of every hand gesture
   if(/\b(gesture guide|hand (?:signs?|gestures?)|sign (?:guide|list|sheet)|cheat ?sheet|show (?:me )?(?:the )?gestures|how do i (?:do|use) (?:the )?(?:gestures|signs|hand)|what (?:gestures|signs|hand signs))\b/.test(t)){
     if(window._xrPresenting&&window.__h3dSpawnPanelByName){window.__h3dSpawnPanelByName('guide');speak("Gesture guide, sir. Pinch it to move it.","normal");}
@@ -6097,6 +6128,7 @@ const _WRIST_APPS = [
   { icon:'❖', label:'WAR ROOM',kind:'cmd',   target:'warroom' },
   { icon:'⌂', label:'FORGE',   kind:'cmd',   target:'forge' },
   { icon:'⬡', label:'ARMORY',  kind:'cmd',   target:'hall' },
+  { icon:'⊙', label:'DUM-E',   kind:'cmd',   target:'dumeguide' },
 ];
 const _WRIST_PER = 6, _WRIST_COLS = [76, 190, 304], _WRIST_ROWS = [102, 180], _WRIST_TILE = 60;
 const _WRIST_SLOTS = []; for (const _wy of _WRIST_ROWS) for (const _wx of _WRIST_COLS) _WRIST_SLOTS.push({ x: _wx, y: _wy });
@@ -6226,6 +6258,7 @@ function _wristFireApp(app, worldPos) {
     else if (app.target==='warroom') window.__xrWarRoom && window.__xrWarRoom();
     else if (app.target==='forge') window.__xrForge && window.__xrForge(!_forge);   // toggle the forge bay
     else if (app.target==='hall') window.__xrHallOfArmor && window.__xrHallOfArmor(!(_hall && _hall.visible));   // toggle the Hall of Armor
+    else if (app.target==='dumeguide') window.__h3dSpawnPanelByName && window.__h3dSpawnPanelByName('dumeguide');
   } else { _spawnPanel(app.target, worldPos); }
 }
 // Poke a tile with the right index tip (NEAREST tile wins -> wonky tracking can't cross-fire). A
@@ -6924,6 +6957,7 @@ function _appsSelect(panel, uv, hand) {
           else if (t.target === 'warroom') window.__xrWarRoom && window.__xrWarRoom();
           else if (t.target === 'forge') window.__xrForge && window.__xrForge(!_forge);   // toggle the forge bay
           else if (t.target === 'hall') window.__xrHallOfArmor && window.__xrHallOfArmor(!(_hall && _hall.visible));   // toggle the Hall of Armor
+          else if (t.target === 'dumeguide') window.__h3dSpawnPanelByName && window.__h3dSpawnPanelByName('dumeguide');
         }
         else if (t.kind === 'web') {                          // honest: exit immersive, then open in the 2D browser
           try { window.speak && window.speak('Opening ' + t.label + ', sir. Leaving immersive mode.', 'normal'); } catch(_){}
@@ -7190,6 +7224,39 @@ function _makeGuidePanel() {
   mesh.userData._isPanel = true; mesh.userData._static = true; mesh.userData._panelType = 'guide';
   return mesh;
 }
+function _makeDumeGuidePanel() {
+  const groups = window.__DUME_GUIDE || [];
+  const W = 900, M = 28, rowH = 44;
+  let H = 104;
+  for (const sec of groups) H += 28 + sec.items.length * rowH + 12;
+  H += 16;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(3,11,22,0.94)'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(255,182,72,0.5)'; g.lineWidth = 3; g.strokeRect(9, 9, W-18, H-18);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#ffcf9a'; g.font = '700 30px monospace'; g.fillText('DUM-E \u2014 COMMANDS', M, 52);
+  g.fillStyle = 'rgba(127,239,255,0.6)'; g.font = '600 13px monospace';
+  g.fillText('say "dum-e," then any of these  (the forge must be open)', M, 74);
+  let y = 104;
+  for (const sec of groups) {
+    g.fillStyle = '#ffb648'; g.font = '700 15px monospace'; g.fillText(sec.grp, M, y);
+    g.strokeStyle = 'rgba(255,182,72,0.22)'; g.lineWidth = 1; g.beginPath(); g.moveTo(M, y+8); g.lineTo(W-M, y+8); g.stroke();
+    y += 28;
+    for (const it of sec.items) {
+      g.fillStyle = '#ffffff'; g.font = '700 14px monospace'; g.fillText(it.c, M+6, y+16);
+      g.fillStyle = 'rgba(159,232,255,0.82)'; g.font = '500 13px monospace';
+      _wrapText(g, it.d, M+330, y+16, W - M - 330 - 6, 15, 2);
+      y += rowH;
+    }
+    y += 12;
+  }
+  const tex = new THREE.CanvasTexture(c); tex.anisotropy = 4;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.56 * H / W),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide }));
+  mesh.userData._isPanel = true; mesh.userData._static = true; mesh.userData._panelType = 'dumeguide';
+  return mesh;
+}
 // Voice-triggered spawn: picks a spot in front of the head as the "from" position.
 window.__h3dSpawnPanelByName = function(name) {
   if (!renderer.xr.isPresenting) return null;
@@ -7225,6 +7292,23 @@ window.__h3dSpawnPanelByName = function(name) {
   if (name === 'guide') {
     if (_panels.some(p => p.userData._panelType === 'guide')) return true;   // singleton
     const panel = _makeGuidePanel();
+    const camPos = new THREE.Vector3(); cam.getWorldPosition(camPos);
+    const target = camPos.clone().addScaledVector(fwd, 0.85);
+    const face = new THREE.Vector3().subVectors(target, camPos).normalize();
+    panel.userData._animT = 0;
+    panel.userData._startPos = from.clone();
+    panel.userData._targetPos = target;
+    panel.userData._targetQuat = new THREE.Quaternion().setFromRotationMatrix(
+      new THREE.Matrix4().lookAt(new THREE.Vector3(), face, new THREE.Vector3(0,1,0)));
+    panel.position.copy(from); panel.quaternion.copy(panel.userData._targetQuat);
+    panel.scale.setScalar(0.15);
+    scene.add(panel); _panels.push(panel);
+    try { window.__xrParticleBurst && window.__xrParticleBurst(from); } catch(_){}
+    return true;
+  }
+  if (name === 'dumeguide') {
+    if (_panels.some(p => p.userData._panelType === 'dumeguide')) return true;   // singleton
+    const panel = _makeDumeGuidePanel();
     const camPos = new THREE.Vector3(); cam.getWorldPosition(camPos);
     const target = camPos.clone().addScaledVector(fwd, 0.85);
     const face = new THREE.Vector3().subVectors(target, camPos).normalize();
