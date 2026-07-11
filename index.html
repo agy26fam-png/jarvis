@@ -2669,9 +2669,7 @@ window.__brainKey=function(){try{return localStorage.getItem('jarvisBrainKey')||
             const dead=BRAIN;BRAIN='';window.BRAIN='';_fails=0;
             console.warn('brain tunnel unreachable -- circuit open, retrying discovery in 2min');
             setTimeout(()=>{
-              fetch('brain.json?cb='+Date.now()).then(r=>r.ok?r.json():null).then(d=>{
-                if(d&&d.url){BRAIN=String(d.url).replace(/\/$/,'');window.BRAIN=BRAIN;try{localStorage.setItem('jarvisBrain',BRAIN);}catch(_){}}
-              }).catch(()=>{});
+              try{ window.__rediscoverBrain && window.__rediscoverBrain(); }catch(_){}   // probe /tts_status + set _brainOK before committing
             },120000);
           }
           throw e;
@@ -6235,10 +6233,12 @@ function _wristFireApp(app, worldPos) {
 // velocity false-fires): the finger must travel >=4.5cm across the panel in ONE consistent direction
 // within 500ms while grazing it -- a poke (near-zero travel) or a jitter twitch can't trigger a flip.
 const _wristSw = { acc: 0, t0: 0 };
+let _wristVis = 0;
 function _checkWristTap() {
-  if (!_wristPanel.visible) { if (_wristHoverKey!=null) { _wristHoverKey=null; _wristRedrawT=0; } _wristSw.acc = 0; _wristPrevX = null; return; }
+  if (!_wristPanel.visible || _wristVis < 0.6) {   // #13: don't fire taps on a barely-aligned (near-transparent) panel if (_wristHoverKey!=null) { _wristHoverKey=null; _wristRedrawT=0; } _wristSw.acc = 0; _wristPrevX = null; return; }
   const tip = _tipPos(_xrHands[1]);   // 1e-filtered right index tip
   if (!tip) { if (_wristHoverKey!=null) { _wristHoverKey=null; _wristRedrawT=0; } _wristSw.acc = 0; _wristPrevX = null; return; }
+  _wristPanel.updateWorldMatrix(false, false);   // #14: fresh world matrix for the poke hit-test
   const now = performance.now();
   _wristInv.copy(_wristPanel.matrixWorld).invert();
   _wristLoc.copy(tip).applyMatrix4(_wristInv);   // fingertip in panel-local space: x right, y up, z out of face
@@ -7244,7 +7244,7 @@ window.__h3dSpawnPanelByName = function(name) {
 window.__h3dDismissPanels = function() {
   const keep = [];
   for (const p of _panels) {
-    if (p === _workbench || p.userData._panelType === 'workbench') { keep.push(p); continue; }   // bench survives clears/swipes -- never dispose it
+    if (p === _workbench || p.userData._panelType === 'workbench' || p.userData._keep) { keep.push(p); continue; }   // bench + _keep fixtures (forge app-rack) survive clears
     if (p.userData._video) { try { p.userData._video.srcObject?.getTracks().forEach(t => t.stop()); } catch(_){} }
     p.geometry?.dispose();
     p.material?.map?.dispose();
@@ -8088,7 +8088,7 @@ function _positionWristPanel() {
   renderer.xr.getCamera().getWorldPosition(_wristCamPos);
   _wristToCam.subVectors(_wristCamPos, _wristPanel.position).normalize();
   const align = _wDorsal.dot(_wristToCam);
-  const vis = Math.max(0, Math.min(1, (align - 0.15) / 0.4));   // generous falloff, no hard cutoff
+  const vis = Math.max(0, Math.min(1, (align - 0.15) / 0.4)); _wristVis = vis;   // generous falloff, no hard cutoff
   _wristMat.opacity *= vis;
   _wristPanel.visible = vis > 0.02;
 }
@@ -11511,6 +11511,7 @@ window.__h3dClearScene = function() {
     md.lines.material?.dispose();
   }
   meshData = [];
+  _modelPinchPrev = null;   // drop any stale pinch-rotate anchor from the prior model
   root.position.set(0, 0, 0);   // clear bottom-anchor lift from prior model
   // Reset isolation + labels so the new model starts fresh
   isolated = false;
@@ -11829,7 +11830,7 @@ renderer.setAnimationLoop((time) => {
     _positionReactor();
     _positionHUD();                                                                    // head-locked every frame (no lag)
     // canvas redraw throttled to ~2fps -- EXCEPT during the FACEPLATE boot reveal (first 1.4s) or a fresh lock, when it runs every frame
-    if (!_hudRedrawT || time - _hudRedrawT > (_combatOn ? 90 : _hudMinimal ? 130 : 500) || (_hudBootT && performance.now() - _hudBootT < 1500) || _hudLocked) { _drawHUD(); _hudRedrawT = time; }
+    if (!_hudRedrawT || time - _hudRedrawT > (_combatOn ? 90 : _hudLocked ? 150 : _hudMinimal ? 130 : 500) || (_hudBootT && performance.now() - _hudBootT < 1500)) { _drawHUD(); _hudRedrawT = time; }
     _updateEarthProjector();                                                           // spin globe + drift scanlines + rise particles
     if (_h3dMixer) _h3dMixer.update(_h3dClock.getDelta());                             // rigged-model animation
     _positionWristPanel();
