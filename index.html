@@ -4506,7 +4506,7 @@ let _whisperOn=false;
 // window.requestAnimationFrame, which Quest FREEZES during immersive XR sessions -- reading it
 // there left the whisper VAD deaf inside AR. setInterval keeps firing in XR; this does not.
 function _micLevelNow(){
-  if(!analyser)return window._micLevelRaw||0;
+  if(!analyser)return window._xrPresenting?0:(window._micLevelRaw||0);   // #21: _micLevelRaw is rAF-driven (FROZEN in XR) -> don't feed the whisper VAD a stale level there
   try{
     analyser.getByteFrequencyData(freqData);
     let sum=0,n=0;const hi=Math.min(8,freqData.length-1);
