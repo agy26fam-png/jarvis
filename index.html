@@ -2368,7 +2368,7 @@ function speak(t,emo){t=String(t==null?'':t);
   if(!emo&&stickyMood)emo=stickyMood;          // otherwise keep the user's chosen mood across replies
   // Fish Audio voice: if enabled AND available, stream the cloned voice from the brain proxy.
   // Falls back to Web Speech below if fetch fails or the brain returns 501 (no key).
-  if(window._useFish && t){
+  if(window._useFish && t && !(window._fishCooldown > Date.now())){
     fishSpeak(t).then(ok=>{if(!ok)_webSpeak(t,emo);}).catch(()=>_webSpeak(t,emo));
     return;
   }
@@ -2399,9 +2399,9 @@ async function fishSpeak(text){
       body:JSON.stringify({text:text.slice(0,500)})});
     if(!r.ok){jv.classList.remove('speaking');
       window._fishFails=(window._fishFails||0)+1;
-      if(window._fishFails>=2)window._useFish=false;   // stop paying latency on every reply
+      if(window._fishFails>=3)window._fishCooldown=Date.now()+45000;   // 3 straight misses (brain likely down) -> pause fish 45s then auto-retry -- never permanently drop the Jarvis voice
       return false;}
-    window._fishFails=0;
+    window._fishFails=0; window._fishCooldown=0;
     const blob=await r.blob();
     const url=URL.createObjectURL(blob);
     const audio=new Audio(url);
