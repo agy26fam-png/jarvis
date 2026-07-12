@@ -5384,36 +5384,11 @@ function _updateHandSigns(now) {
     if (act.tone) window.tone(act.tone, 0.08, 'sine', 0.05);
   } catch(_){}
 }
-// CLAW-SPREAD EXPLODE: both hands as "claws" (fingers half-curled) brought together on the
-// hologram, then pulled APART -> the model explodes proportionally to how far you spread. Push
-// them back together -> it reassembles. Physical, continuous, unmistakably a Stark move.
-const _claw = { active: false, baseSep: 0, baseExplode: 0 };
-function _updateClawExplode() {
-  if (!(window._h3d && window._h3d.cur)) { _claw.active = false; return; }
-  const lh = _xrHands[0], rh = _xrHands[1];
-  const wl = _jt(lh, 'wrist'), wr = _jt(rh, 'wrist');
-  if (!wl || !wr) { _claw.active = false; return; }
-  const oL = _handOpenness(lh), oR = _handOpenness(rh);
-  // EXPLODE = both hands held OPEN (flat palms), then pulled apart -> blows the model apart;
-  // push them back together -> reassembles. Open palms are easy to form and don't clash with pinch-grab
-  // or the two-hand scale (which needs pinches). Much more reliable than the old narrow "claw" band.
-  const open = oL > 0.62 && oR > 0.62 &&
-    !((_pinchPoint(lh) || {}).pinching) && !((_pinchPoint(rh) || {}).pinching);
-  const sep = wl.position.distanceTo(wr.position);
-  if (!open) { _claw.active = false; return; }
-  if (!_claw.active) {                     // pose just started -> latch the baseline (no "start together" needed)
-    _claw.active = true; _claw.baseSep = sep; _claw.baseExplode = window._h3d.explodeT || 0;
-    try { window.tone(760, 0.05, 'sine', 0.04); } catch(_){}
-    return;
-  }
-  const delta = (sep - _claw.baseSep) / 0.45;   // ~45cm of extra spread = full explode
-  window._h3d.explodeT = Math.max(0, Math.min(2.0, _claw.baseExplode + delta * 1.5));   // match the voice range (2.0), no pop
-  window._h3d.autoRot = false;
-}
+// (CLAW-SPREAD EXPLODE gesture REMOVED -- explode is VOICE-ONLY now. Two open flat palms is far too common
+// a pose; it fired explode whenever both hands happened to be open near a model. Say "explode it" / "reassemble".)
 function _updateHandCommands() {
   const now = performance.now();
   _updateHandSigns(now);
-  _updateClawExplode();
   const L = _midPinch(_xrHands[0]), R = _midPinch(_xrHands[1]);
 
   // BOTH middle-pinches held ~0.7s = RECENTER
@@ -8747,6 +8722,7 @@ function _makeHelperArm() {
   return G;
 }
 const _dumeTmp = new THREE.Vector3(), _dumeTmp2 = new THREE.Vector3(), _dumeSh = new THREE.Vector3();
+const _dumeGrip = new THREE.Vector3(0, 0.11, 0.05);   // claw grip point (head-local) a fetched model is eased into
 window.__xrDume = function (cmd) {   // DUM-E's brain: perform a real action + the matching gesture
   if (!_forge || !_forge.arm) { try { window.speak && window.speak('The forge is offline, sir. Say "forge" first.', 'normal'); } catch(_){} return false; }
   const u = _forge.arm.userData; u.action = cmd; u.actionT0 = performance.now();
@@ -8797,14 +8773,18 @@ function _dumeNavStep(u) {
     nav.tx = _dumeCam.x + _dumeFwd.x*0.6; nav.tz = _dumeCam.z + _dumeFwd.z*0.6;
   }
   const dx = nav.tx - arm.position.x, dz = nav.tz - arm.position.z, dist = Math.hypot(dx, dz);
-  if (dist > 0.14) {   // TRAVEL: glide toward the target, yaw to face it, spin the wheels
-    const stepv = Math.min(dist, 0.9*0.016);
+  if (dist > 0.14) {   // TRAVEL: PIVOT to face the target first, then roll -- eased accel/decel, deliberate (hydraulic, not snappy)
+    const yaw = Math.atan2(dx, dz); let dy = yaw - arm.rotation.y; while(dy>Math.PI)dy-=6.283; while(dy<-Math.PI)dy+=6.283;
+    arm.rotation.y += dy*0.05;                                    // slow, smooth pivot (was 0.12 -- a whip-turn)
+    const align = Math.max(0, Math.cos(dy));                      // ~1 facing the target, ~0 sideways: don't barrel off in a weird direction
+    const tgt = 0.5 * Math.min(1, dist/0.5) * (0.2 + 0.8*align);  // decelerate near the target + only advance once roughly aligned
+    nav.spd = (nav.spd || 0) + (tgt - (nav.spd || 0)) * 0.05;     // ease speed up from rest (accel ramp), down to a stop
+    const stepv = Math.min(dist, nav.spd*0.016);
     arm.position.x += (dx/dist)*stepv; arm.position.z += (dz/dist)*stepv;
-    const yaw = Math.atan2(dx, dz); let dy = yaw - arm.rotation.y; while(dy>Math.PI)dy-=6.283; while(dy<-Math.PI)dy+=6.283; arm.rotation.y += dy*0.12;
     for (const w of u.wheels) w.rotation.x += stepv/0.06;
     nav.arriveT = 0; return true;
   }
-  nav.arriveT = (nav.arriveT || 0) + 0.016;   // ARRIVED
+  nav.arriveT = (nav.arriveT || 0) + 0.016; nav.spd = 0;   // ARRIVED (reset speed so the next trip ramps from rest)
   if (nav.state === 'wander') { nav.state = 'idle'; return false; }
   if (nav.state === 'follow') return false;                            // reached the standoff -> hold; re-chases as you move
   if (nav.state === 'goPoint') { nav.state = 'stay'; return false; }   // arrived at the pointed spot -> WAIT there
@@ -8815,12 +8795,14 @@ function _dumeNavStep(u) {
     // it stays welded wherever it was (the "connected to a random part of the body" bug).
     if (!nav.carried && typeof root !== 'undefined' && meshData.length) { root.getWorldPosition(_dumeTmp); (u.gripTarget || (u.gripTarget = new THREE.Vector3())).copy(_dumeTmp); }
     if (nav.arriveT < 1.1) { u.gripPhase = 'reach'; return true; }   // bend DOWN, claw OPEN (IK reach window)
-    // SEIZE: close the claw on the target while the boom is still bent down, then HOLD that grip pose so it's visible
+    // SEIZE: parent the model to the claw PRESERVING its current world position (attach, not a snap), then draw it
+    // smoothly INTO the grip point over the next beat -- so it glides into the claw instead of teleporting there.
     if (!nav.carried && typeof root !== 'undefined' && meshData.length) {
-      try { u.head.attach(root); root.position.set(0, 0.11, 0.05); root.userData._vel = null; nav.carried = root; } catch(_){}   // HELD in the claw
+      try { u.head.attach(root); root.userData._vel = null; nav.carried = root; } catch(_){}   // HELD; world pos preserved
     }
     u.gripPhase = 'grip';
-    if (nav.arriveT < 1.5) return true;   // ~0.4s of closed-claw-down before lifting -> the grab reads as a real grab
+    if (nav.carried) nav.carried.position.lerp(_dumeGrip, 0.14);   // ease the model the rest of the way into the claw (no pop-into-hand)
+    if (nav.arriveT < 1.8) return true;   // let the draw-in finish before lifting -> reads as a real pickup
     nav.state = 'return'; nav.arriveT = 0; u.gripPhase = 'carry'; try { window.speak && window.speak('Got it, sir.', 'normal'); } catch(_){}
     return true;
   }
@@ -8924,8 +8906,7 @@ window._dumeReact = function (event) {
   const now = performance.now();
   const gesture = (g) => { u.action = g; u.actionT0 = now; try { window.tone && window.tone(880, 0.05, 'sine', 0.03); } catch(_){} };
   if (event === 'success') {
-    if (now - _dumeReactT > 12000) { _dumeReactT = now; gesture('dance'); }   // a full celebrate now and then
-    else if (now - (u._nodT || 0) > 3000) { u._nodT = now; gesture('nod'); }  // otherwise a quick nod of acknowledgement
+    if (now - (u._nodT || 0) > 3000) { u._nodT = now; gesture('nod'); }   // just a quiet nod -- no random celebrate-spins
   } else if (event === 'spawn') { gesture('reach'); }
   else if (event === 'fail') { gesture('shake'); }
 };
@@ -9087,7 +9068,7 @@ function _updateForge() {
   else if (u.action === 'nod')   { headX = 0.12 + Math.sin(aT*7)*0.28; }                                   // YES -- head bobs
   else if (u.action === 'shake') { u.turn.rotation.y = Math.sin(aT*8)*0.34; headX = 0.10; }                // NO -- turret shakes
   else if (u.action === 'tilt')  { headX = -0.34; s1 = u.s1Base + 0.14; }                                  // curious cock of the head
-  else if (u.action === 'dance') { u.turn.rotation.y += 0.15; s2 = u.s2Base + Math.sin(aT*8)*0.34; headX = Math.sin(aT*6)*0.2; clawOpen = 0.4; }  // celebrate / spin
+  else if (u.action === 'dance') { u.turn.rotation.y = Math.sin(aT*3.2)*0.42; s1 = u.s1Base + Math.sin(aT*2.6)*0.12; s2 = u.s2Base + Math.sin(aT*4)*0.22; headX = 0.1 + Math.sin(aT*3)*0.16; clawOpen = 0.4; }  // clumsy happy SWAY (absolute yaw so it recentres), NOT a fast spin
   else if (u.action === 'look')  {   // orient toward the spot you pointed at + lean in (attention)
     s1 = u.s1Base + 0.10; clawOpen = 0.25;
     if (u.lookTarget) { try { _forge.arm.getWorldPosition(_dumeTmp2);
@@ -9377,7 +9358,7 @@ window.__xrForge = function (show) {
     scene.add(rack); _panels.push(rack);
     const group = new THREE.Group(); group.position.copy(rackPos); group.quaternion.copy(q); group.add(_makeForgeDressing()); scene.add(group);
     const arm = _makeHelperArm();
-    arm.scale.setScalar(2.0);   // ~2.3m tall -- taller than the user, like the real DUM-E (longer boom now)
+    arm.scale.setScalar(1.35);   // ~1.55m -- roughly your height, a workshop arm at rest (was 2.0/~2.3m: too big)
     const bfwd = new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion); bfwd.y = 0; bfwd.normalize();
     const bright = new THREE.Vector3(1,0,0).applyQuaternion(cam.quaternion); bright.y = 0; bright.normalize();
     const armFloor = (typeof _forgeFloorY === 'function' ? _forgeFloorY(camPos) : camPos.y - 1.55);   // BASE ON THE FLOOR
@@ -9600,7 +9581,6 @@ window.__xrClearTrails = function() {
 const _swipe = [{ samples: [], last: 0 }, { samples: [], last: 0 }];
 function _detectPalmSwipe() {
   if (_grip.mode !== 'none' || _drawMode) return;          // don't dismiss while interacting
-  if (_claw.active) return;                                // both palms open = explode gesture, not a dismiss
   if (!(window._h3d && window._h3d.cur)) return;           // nothing to dismiss
   const now = performance.now();
   for (let i = 0; i < 2; i++) {
