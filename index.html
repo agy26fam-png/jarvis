@@ -934,7 +934,7 @@ for(let i=0;i<12;i++){const a=(i*30-90)*PI/180,P=pt(258,a);
   for(let i=0;i<=24;i++){const y=150+i*10,big=i%4===0;
     hud.appendChild(el('line',{x1:gx,y1:y,x2:gx+dir*(big?9:4),y2:y,stroke:'#4fb8d8','stroke-width':big?0.9:0.5,opacity:big?0.45:0.2}));}});
 
-const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,402 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 28", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "3/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
+const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,403 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 28", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "3/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
 const spk=document.getElementById('spokes'),ag=document.getElementById('agents');
 A.forEach(o=>{const r=o.a*PI/180,c=Math.cos(r),s=Math.sin(r),dx=cx+150*c,dy=cy+150*s;
   spk.appendChild(el('line',{x1:cx+96*c,y1:cy+96*s,x2:dx,y2:dy,stroke:'#3fa8cc','stroke-width':1,opacity:0.2}));
@@ -6268,7 +6268,7 @@ function _wristFireApp(app, worldPos) {
 const _wristSw = { acc: 0, t0: 0 };
 let _wristVis = 0;
 function _checkWristTap() {
-  if (!_wristPanel.visible || _wristVis < 0.6) {   // #13: don't fire taps on a barely-aligned (near-transparent) panel if (_wristHoverKey!=null) { _wristHoverKey=null; _wristRedrawT=0; } _wristSw.acc = 0; _wristPrevX = null; return; }
+  if (!_wristPanel.visible || _wristVis < 0.6) { if (_wristHoverKey!=null) { _wristHoverKey=null; _wristRedrawT=0; } _wristSw.acc = 0; _wristPrevX = null; return; }   // #13: don't fire taps on a barely-aligned (near-transparent) panel
   const tip = _tipPos(_xrHands[1]);   // 1e-filtered right index tip
   if (!tip) { if (_wristHoverKey!=null) { _wristHoverKey=null; _wristRedrawT=0; } _wristSw.acc = 0; _wristPrevX = null; return; }
   _wristPanel.updateWorldMatrix(false, false);   // #14: fresh world matrix for the poke hit-test
