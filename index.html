@@ -934,7 +934,7 @@ for(let i=0;i<12;i++){const a=(i*30-90)*PI/180,P=pt(258,a);
   for(let i=0;i<=24;i++){const y=150+i*10,big=i%4===0;
     hud.appendChild(el('line',{x1:gx,y1:y,x2:gx+dir*(big?9:4),y2:y,stroke:'#4fb8d8','stroke-width':big?0.9:0.5,opacity:big?0.45:0.2}));}});
 
-const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,400 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 28", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "2/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
+const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,400 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 28", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "3/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
 const spk=document.getElementById('spokes'),ag=document.getElementById('agents');
 A.forEach(o=>{const r=o.a*PI/180,c=Math.cos(r),s=Math.sin(r),dx=cx+150*c,dy=cy+150*s;
   spk.appendChild(el('line',{x1:cx+96*c,y1:cy+96*s,x2:dx,y2:dy,stroke:'#3fa8cc','stroke-width':1,opacity:0.2}));
@@ -3819,6 +3819,12 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
   // DUM-E the helper arm -- "dum-e, <do something>"
   { const dm = t.match(/\b(?:dum-?e|dummy)\b[,\s]*(.*)$/);
     if (dm) { const rest = dm[1] || '';
+      // HOLD / HAND-CONTROL first: "hold this" must beat both the fetch matcher and "hold position"->stay.
+      // Lore-accurate: DUM-E's documented job is holding/moving equipment while Tony works on it.
+      if (/\b(hand control off|stop holding|let go|drop it|release it|you can let go|give it back)\b/.test(rest)) {
+        if (!(window._xrPresenting && window.__xrDumeHold && window.__xrDumeHold(false))) speak("Step into the forge first, sir.","normal"); return; }
+      if (/\b(hold (?:this|it|that)|hold on to|steady (?:this|it|that)|hand control(?: on)?|manual control|let me guide)\b/.test(rest)) {
+        if (!(window._xrPresenting && window.__xrDumeHold && window.__xrDumeHold(true))) speak("Step into the forge first, sir.","normal"); return; }
       if (/\bbring|fetch|get (?:this|it|that)|come (?:get|grab)|hand (?:it|this|me|that)|give me\b/.test(rest)) {   // "bring this to me"
         if (!(window._xrPresenting && window.__xrDumeFetch && window.__xrDumeFetch())) speak("Step into the forge first, sir.","normal"); return; }
       const _dz = (fn) => { if (!(window._xrPresenting && fn && fn())) speak("Step into the forge first, sir.","normal"); };
@@ -8830,10 +8836,26 @@ const _dumeCam = new THREE.Vector3(), _dumeFwd = new THREE.Vector3();
 function _dumeNavStep(u) {
   const nav = u.nav, arm = _forge.arm;
   if (u.powered === false) { nav.wanderT = 0; if (nav.state === 'wander') nav.state = 'idle'; return false; }   // OFF: no autonomy roam, no travel
-  if (nav.state === 'idle') {   // AUTONOMY: roam a little on his own every ~20s so he feels alive
+  if (nav.state === 'idle') {   // AUTONOMY: potter about + look around, so he reads as busy rather than parked
     nav.wanderT = (nav.wanderT || 0) + 0.016;
-    if (nav.wanderT > 20 && Math.random() < 0.01) { nav.wanderT = 0; const h = nav.home || arm.position;
-      nav.tx = h.x + (Math.random()-0.5)*1.3; nav.tz = h.z + (Math.random()-0.5)*1.3; nav.state = 'wander'; }
+    if (nav.wanderT > 8 && Math.random() < 0.02) {   // roam ~2.5x more often than the old 20s/1%
+      nav.wanderT = 0; const h = nav.home || arm.position;
+      nav.tx = h.x + (Math.random()-0.5)*2.0; nav.tz = h.z + (Math.random()-0.5)*2.0; nav.state = 'wander';
+      if (_forgeRoom) { const R = _forgeRoom;   // stay in the scanned room
+        nav.tx = Math.max(R.minX+0.5, Math.min(R.maxX-0.5, nav.tx)); nav.tz = Math.max(R.minZ+0.5, Math.min(R.maxZ-0.5, nav.tz)); }
+      return false;
+    }
+    // BETWEEN roams: pick something to stare at for a few seconds (a curious idle beat, not a statue)
+    u._gazeT = (u._gazeT || 0) + 0.016;
+    if (u._gazeT > 5 && Math.random() < 0.02) { u._gazeT = 0;
+      const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
+      const pick3 = Math.random();
+      const tgt = (u.lookTarget || (u.lookTarget = new THREE.Vector3()));
+      if (pick3 < 0.4) tgt.copy(_dumeCam);                                              // watch YOU
+      else if (pick3 < 0.7 && typeof root !== 'undefined' && root && root.parent) root.getWorldPosition(tgt);  // the hologram
+      else tgt.set(arm.position.x + (Math.random()-0.5)*2, _dumeCam.y - 0.6, arm.position.z + (Math.random()-0.5)*2);  // some spot in the room
+      u._gazeUntil = performance.now() + 2500 + Math.random()*2500;
+    }
     return false;
   }
   if (nav.state === 'stay') return false;   // COMMANDED WAIT: hold this spot, no autonomy roam, until recalled
@@ -8878,15 +8900,41 @@ function _dumeNavStep(u) {
     u.gripPhase = 'grip';
     if (nav.carried) nav.carried.position.lerp(_dumeGrip, 0.14);   // ease the model the rest of the way into the claw (no pop-into-hand)
     if (nav.arriveT < 1.8) return true;   // let the draw-in finish before lifting -> reads as a real pickup
+    if (nav._thenHold) { nav._thenHold = false; nav.state = 'hold'; nav.arriveT = 0; u.gripPhase = 'hold'; return true; }   // "hold this" -> steady it, don't hand it back
     nav.state = 'return'; nav.arriveT = 0; u.gripPhase = 'carry'; try { window.speak && window.speak('Got it, sir.', 'normal'); } catch(_){}
     return true;
   }
-  if (nav.state === 'return') {
-    if (nav.carried) { try { scene.attach(nav.carried); const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
-        _dumeFwd.set(0,0,-1).applyQuaternion(cam.quaternion); _dumeFwd.y=0; _dumeFwd.normalize();
-        nav.carried.position.copy(_dumeCam).addScaledVector(_dumeFwd, 0.5); nav.carried.position.y = _dumeCam.y - 0.25; } catch(_){}
-      nav.carried = null; u.gripPhase = null; u.gripTarget = null; try { window.speak && window.speak(pick(['There you go, sir.','For you, sir.']), 'confident'); } catch(_){} }
+  if (nav.state === 'return') {   // rolled up to you holding it -> hand it over properly
+    nav.state = 'offer'; nav.arriveT = 0; u.gripPhase = 'offer';
+    try { window.speak && window.speak(pick(['For you, sir.','There you go, sir.','Here, sir.']), 'normal'); } catch(_){}
+    return true;
+  }
+  if (nav.state === 'offer') {
+    // Reach the claw OUT to you at chest height and hold it there, then open and let go. `scene.attach`
+    // keeps the model exactly where the claw was holding it, so it is RELEASED into your hands rather
+    // than snapping to your face.
+    const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
+    _dumeFwd.set(0,0,-1).applyQuaternion(cam.quaternion); _dumeFwd.y = 0; _dumeFwd.normalize();
+    (u.gripTarget || (u.gripTarget = new THREE.Vector3())).set(
+      _dumeCam.x + _dumeFwd.x*0.42, _dumeCam.y - 0.30, _dumeCam.z + _dumeFwd.z*0.42);
+    if (nav.arriveT < 1.3) return true;                                   // extend + present it to you
+    if (nav.carried) { try { scene.attach(nav.carried); nav.carried.userData._vel = null; } catch(_){} nav.carried = null; }
+    if (nav.arriveT < 2.0) { u.gripPhase = 'release'; return true; }      // claw opens, arm lingers a beat
+    u.gripPhase = null; u.gripTarget = null;
     nav.state = 'goHome'; const h = nav.home || arm.position; nav.tx = h.x; nav.tz = h.z; nav.arriveT = 0; return true;
+  }
+  if (nav.state === 'hold') {
+    // "DUM-E, hold this" -- his documented job is holding/moving equipment while Tony works on it.
+    // He steadies the model out in front of you and FOLLOWS YOUR HAND: move your hand, the part moves.
+    // Lore-accurate hand-control (Tony gesture-drives holograms; DUM-E holds the work).
+    const h0 = _tipPos(_xrHands[1]) || _tipPos(_xrHands[0]);
+    if (h0) (u.gripTarget || (u.gripTarget = new THREE.Vector3())).copy(h0);
+    else { const cam = renderer.xr.getCamera(); cam.getWorldPosition(_dumeCam);
+      _dumeFwd.set(0,0,-1).applyQuaternion(cam.quaternion); _dumeFwd.y = 0; _dumeFwd.normalize();
+      (u.gripTarget || (u.gripTarget = new THREE.Vector3())).set(_dumeCam.x + _dumeFwd.x*0.5, _dumeCam.y - 0.3, _dumeCam.z + _dumeFwd.z*0.5); }
+    u.gripPhase = 'hold';
+    if (nav.carried) nav.carried.position.lerp(_dumeGrip, 0.14);
+    return true;
   }
   if (nav.state === 'goHome') { nav.state = 'idle'; return false; }
   return false;
@@ -8947,6 +8995,21 @@ window.__xrDumeCome = function () {   // "come back / come here" -> roll to you,
 window.__xrDumeFollow = function (on) {   // "follow me" / "stop following"
   const u = _dumeReady(true); if (!u) return false; u.nav.state = on ? 'follow' : 'idle'; u.nav.arriveT = 0; if (!on) u.nav.wanderT = 0; u.nav.marked = false;
   try { window.speak && window.speak(on ? pick(['Following, sir.','Right behind you, sir.']) : 'Holding here, sir.', 'normal'); } catch(_){}
+  return true;
+};
+window.__xrDumeHold = function (on) {   // "dum-e, hold this" / "hand control on" -> he steadies the model and follows your hand
+  const u = _dumeReady(true); if (!u) return false; const nav = u.nav;
+  if (!on) { if (nav.carried) { try { scene.attach(nav.carried); nav.carried.userData._vel = null; } catch(_){} nav.carried = null; }
+    nav.state = 'idle'; u.gripPhase = null; u.gripTarget = null;
+    try { window.speak && window.speak(pick(['Letting go, sir.','Released, sir.']), 'normal'); } catch(_){} return true; }
+  if (!(window._h3d && window._h3d.cur) || typeof root === 'undefined' || !meshData.length) {
+    try { window.speak && window.speak('Nothing to hold, sir -- summon a model first.', 'normal'); } catch(_){} return false; }
+  if (!nav.home) nav.home = _forge.arm.position.clone();
+  root.getWorldPosition(_dumeTmp);
+  const tx = _dumeTmp.x - _forge.arm.position.x, tz = _dumeTmp.z - _forge.arm.position.z, d = Math.hypot(tx,tz) || 1;
+  nav.tx = _dumeTmp.x - (tx/d)*0.45; nav.tz = _dumeTmp.z - (tz/d)*0.45;
+  nav.state = 'goModel'; nav.arriveT = 0; nav.carried = null; nav._thenHold = true;   // fetch it, then HOLD instead of returning
+  try { window.speak && window.speak(pick(['Holding it for you, sir.','I have it, sir -- guide it where you want.','Steady, sir.']), 'confident'); } catch(_){}
   return true;
 };
 window.__xrDumeStay = function () {   // "stay / wait / hold position"
@@ -9136,6 +9199,16 @@ function _updateForge() {
       headX += Math.max(-0.4, Math.min(0.3, -(_dumeTmp.y - _dumeTmp2.y)*0.25));
     }
   } catch(_){}
+  // IDLE GAZE: while pottering about he fixes on whatever caught his attention (you / the hologram / a
+  // spot in the room -- chosen in _dumeNavStep) and watches it for a few seconds. This is the difference
+  // between "parked" and "busy".
+  if (!u.action && !u.gripPhase && u.lookTarget && (u._gazeUntil || 0) > now) { try {
+    _forge.arm.getWorldPosition(_dumeTmp2);
+    let ly = Math.atan2(u.lookTarget.x - _dumeTmp2.x, u.lookTarget.z - _dumeTmp2.z) - _forge.arm.rotation.y;
+    while (ly > Math.PI) ly -= 2*Math.PI; while (ly < -Math.PI) ly += 2*Math.PI;
+    u.turn.rotation.y += (ly - u.turn.rotation.y) * 0.05;   // slow, curious head-turn
+    headX = Math.max(-0.4, Math.min(0.5, -(u.lookTarget.y - _dumeTmp2.y - 1.1) * 0.2));
+  } catch(_){} }
   // ACTIONS overlay the base pose
   if (u.action === 'wave')  { s2 = u.s2Base + Math.sin(aT*10)*0.4; }
   else if (u.action === 'point') { s1 = u.s1Base + 0.4; s2 = u.s2Base + 0.2; clawOpen = 0.4; }
@@ -9194,7 +9267,7 @@ function _updateForge() {
   // FETCH GRIP POSE overrides the idle sway ONLY during a "bring this to me" (gripPhase set) -- so this can't
   // disturb DUM-E's normal idle. reach/grip = bend the boom DOWN-forward with the claw open, then closed;
   // carry = hold it up and in while wheeling back. Angles clamped; hydraulics (seg1/seg2) read as the motion.
-  if (u.gripPhase === 'reach' || u.gripPhase === 'grip') {
+  if (u.gripPhase === 'reach' || u.gripPhase === 'grip' || u.gripPhase === 'offer' || u.gripPhase === 'release' || u.gripPhase === 'hold') {
     // 2-LINK IK so the boom bends to the model's ACTUAL height. seg1/seg2 pivot about Z with links along +Y at
     // rest, so a link at rotation.z=t points (-sin t, cos t) -> its angle from the forward axis is t+PI/2; hence
     // seg1.z = shoulderAngle - PI/2, seg2.z = the relative elbow angle. Clamped + eased; fetch-scoped, so even a
@@ -9215,9 +9288,15 @@ function _updateForge() {
       s2t = Math.max(-1.9, Math.min(0.4, th2));
       hxt = Math.max(-0.7, Math.min(0.6, -Math.atan2(yy, rr) + 0.2));
     } catch(_){} }
+    // AIM THE TURRET at what we're reaching for. The IK solves only the bend plane (X/Y); without this
+    // nothing ever yawed him toward the target, so he bent correctly -- just facing the wrong way.
+    if (u.gripTarget) { try { _forge.arm.getWorldPosition(_dumeTmp2);
+      let gy = Math.atan2(u.gripTarget.x - _dumeTmp2.x, u.gripTarget.z - _dumeTmp2.z) - _forge.arm.rotation.y;
+      while (gy > Math.PI) gy -= 2*Math.PI; while (gy < -Math.PI) gy += 2*Math.PI;
+      u.turn.rotation.y += (gy - u.turn.rotation.y) * 0.13; } catch(_){} }
     s1 = s1t; s2 = s2t; headX = hxt;   // raw IK targets -- the min-jerk spring below does the easing
                                        // (the old 0.12 lerp here double-eased against it = mush)
-    clawOpen = (u.gripPhase === 'reach') ? 0.7 : 0;
+    clawOpen = (u.gripPhase === 'reach' || u.gripPhase === 'release') ? 0.7 : 0;
   } else if (u.gripPhase === 'carry') { s1 = u.s1Base + 0.25; s2 = u.s2Base + 0.15; headX = -0.1; clawOpen = 0; }
   // MIN-JERK JOINT EASING: the research on lifelike robot motion is unambiguous -- smooth, bell-shaped
   // velocity (continuous accel, no step changes) reads as alive; per-frame snapping to a target reads
