@@ -934,7 +934,7 @@ for(let i=0;i<12;i++){const a=(i*30-90)*PI/180,P=pt(258,a);
   for(let i=0;i<=24;i++){const y=150+i*10,big=i%4===0;
     hud.appendChild(el('line',{x1:gx,y1:y,x2:gx+dir*(big?9:4),y2:y,stroke:'#4fb8d8','stroke-width':big?0.9:0.5,opacity:big?0.45:0.2}));}});
 
-const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,403 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 28", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "3/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
+const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,400 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 28", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "2/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
 const spk=document.getElementById('spokes'),ag=document.getElementById('agents');
 A.forEach(o=>{const r=o.a*PI/180,c=Math.cos(r),s=Math.sin(r),dx=cx+150*c,dy=cy+150*s;
   spk.appendChild(el('line',{x1:cx+96*c,y1:cy+96*s,x2:dx,y2:dy,stroke:'#3fa8cc','stroke-width':1,opacity:0.2}));
@@ -4919,7 +4919,9 @@ window.addEventListener('load',()=>setTimeout(async()=>{
 // Handoff commands flip the "active" device -- only the active device speaks TTS.
 (function connectDeviceBus(){
   try {
-    const url = (BRAIN||'').replace(/^http/,'ws').replace(/\/$/, '') + '/ws/device';
+    const _wk = (window.__brainKey && window.__brainKey()) || '';
+    const url = (BRAIN||'').replace(/^http/,'ws').replace(/\/$/, '') + '/ws/device'
+              + (_wk ? '?key=' + encodeURIComponent(_wk) : '');   // remote HUD must pass the key (ws bypasses the http gate)
     if (!/^wss?:/.test(url)) return;
     const role = /Quest|OculusBrowser|VR/i.test(navigator.userAgent) ? 'vr'
                : /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'phone'
@@ -7564,7 +7566,7 @@ function _drawBenchSurface(cv) {
 // WORKBENCH -- FLAT slab by default (the standalone bench, unchanged from before). Only the FORGE passes
 // desk=true, which turns it into a FLOOR-STANDING L-DESK: main top + a RIGHT-hand RETURN wing, drawer fronts
 // facing the user, legs reaching the floor. Local frame: +X = right, +Z = toward the user (front).
-const _DESK_H = 0.72;   // desk-top height above the floor (forge sits the top at floorY + _DESK_H so legs land)
+let _DESK_H = 0.72;   // desk-top height above the floor; set from the user's height at forge time (see __xrForge)
 function _makeWorkbench(desk) {
   const G = new THREE.Group();
   const CY = 0x7fefff, CH = 0xdff4ff, BLUE = 0x2a9fff;
@@ -7585,13 +7587,14 @@ function _makeWorkbench(desk) {
     const e = new THREE.LineSegments(new THREE.EdgesGeometry(b), new THREE.LineBasicMaterial({ color:col||CY, transparent:true, opacity:op==null?0.6:op, blending:THREE.AdditiveBlending })); e.position.set(x,y,z); G.add(e); return e; };
   const topSurf = (w,d,x,z) => { const s = new THREE.Mesh(new THREE.PlaneGeometry(w,d), new THREE.MeshBasicMaterial({ map:tex, transparent:true, opacity:0.92, side:THREE.DoubleSide, depthWrite:false }));
     s.rotation.x = -Math.PI/2; s.position.set(x,0,z); G.add(s); box(w+0.02,0.03,d+0.02,x,-0.02,z,0.7); };
-  topSurf(1.50,0.82, 0, 0);            // MAIN top -- front edge (+Z) toward the user
-  topSurf(0.72,1.15, 1.11, -0.165);    // RETURN wing on the RIGHT (+X), running back -> the L
+  topSurf(1.24,0.78, 0, 0);            // MAIN top -- front edge (+Z) toward the user
+  topSurf(0.56,0.86, 0.86, -0.04);     // RETURN wing on the RIGHT (+X) -- pulled IN + shortened: the old
+                                       // 1.50 top + a 0.72x1.15 wing out at x=1.11 sprawled ~2.9m wide ("stretched out")
   // CLEAN floor-standing legs only -- the drawer-pedestal units + cable grommet were removed (they cluttered
   // the desk / "took too much space" per the user); the L-top now stands on slim legs, still on the real floor.
-  box(0.03,DH,0.80,-0.72,-DH/2, 0.00,0.35);   // left leg (main top)
-  box(0.03,DH,0.80, 0.72,-DH/2, 0.00,0.35);   // right leg (main top)
-  box(0.03,DH,1.12, 1.45,-DH/2,-0.165,0.35);  // far leg (under the return wing)
+  box(0.03,DH,0.74,-0.59,-DH/2, 0.00,0.35);   // left leg (main top)
+  box(0.03,DH,0.74, 0.59,-DH/2, 0.00,0.35);   // right leg (main top)
+  box(0.03,DH,0.82, 1.10,-DH/2,-0.04,0.35);   // far leg (under the return wing)
   G.userData._isPanel = true; G.userData._static = true; G.userData._panelType = 'workbench'; G.userData._desk = true;
   return G;
 }
@@ -7622,6 +7625,11 @@ window.__xrWorkbench = function (show, desk) {
     const i = _panels.indexOf(_workbench); if (i >= 0) _panels.splice(i, 1);
     scene.remove(_workbench); _workbench.traverse(o=>{ o.geometry?.dispose?.(); o.material?.map?.dispose?.(); o.material?.dispose?.(); }); _workbench = null;
   }
+  // DESK HEIGHT = about HALF YOUR HEIGHT, measured at load-in (was a fixed 0.72 = "too short").
+  // camera y is eye height above the local-floor origin; +0.12 approximates eye->crown. Set BEFORE
+  // _makeWorkbench because the legs are built from _DESK_H.
+  try { const _c = renderer.xr.getCamera(); const _p = new THREE.Vector3(); _c.getWorldPosition(_p);
+    if (_p.y > 0.8) _DESK_H = Math.max(0.72, Math.min(1.05, (_p.y + 0.12) * 0.5)); } catch(_){}
   if (!_workbench) _workbench = _makeWorkbench(desk);
   _workbench.position.set(root.position.x, root.position.y, root.position.z);   // under the hologram
   try { const bp = JSON.parse(localStorage.getItem('benchPos') || 'null'); if (bp && _workbenchLocked) _workbench.position.fromArray(bp); } catch(_){}
@@ -7649,6 +7657,7 @@ window.__xrBenchResize = function (factor) {   // voice bigger/smaller/reset; tw
 // = -minY, i.e. model bottom at world 0): shifting +benchY drops the model's base onto the bench top.
 function _placeRootOnBench() {
   if (!renderer.xr.isPresenting) return;
+  if (_dumeHasModel()) return;   // he's holding it -- don't snap it back onto the bench out of his claw
   // Normalise EVERY model to ~0.4 m TALL that sits ON the workbench -- never massive, never floating. Uses model
   // HEIGHT (not diagonal); large-unit glTF samples (Buggy/engine, hundreds of native units) now shrink correctly.
   const s = _modelH > 1e-4 ? Math.min(3, 0.4 / _modelH) : 0.35;
@@ -7838,7 +7847,12 @@ window.__handSpan = function () {
 // FLOOR HEIGHT -- "move the floor to my hands" sets where the hologram sits and REMEMBERS it across
 // sessions (localStorage), so you don't re-level every time you re-open hologram view.
 let _arFloorY = (function(){ try { const v = parseFloat(localStorage.getItem('jarvisFloorY')); return isFinite(v) ? v : null; } catch(_) { return null; } })();
-function _applyFloorY() { if (_arFloorY != null) { root.position.y = _arFloorY; if (_workbench) _workbench.position.y = _arFloorY; } }
+function _applyFloorY() {
+  if (_dumeHasModel()) return;   // DUM-E is holding it -- pinning y to the floor here yanked it out of his claw
+  if (_arFloorY != null) { root.position.y = _arFloorY; if (_workbench) _workbench.position.y = _arFloorY; } }
+// True while DUM-E has the model parented into his claw. Anything that repositions `root` per-frame MUST
+// bail on this, or it fights the grip and the model reads as teleporting into/out of his hand.
+function _dumeHasModel() { try { return !!(_forge && _forge.arm && _forge.arm.userData.nav.carried); } catch(_){ return false; } }
 window.__xrSetFloorToHands = function () {
   if (!renderer.xr.isPresenting) return false;
   const w0 = _jt(_xrHands[0], 'wrist'), w1 = _jt(_xrHands[1], 'wrist');
@@ -8696,30 +8710,91 @@ function _makeHelperArm() {
   const shoulder = new THREE.Group(); shoulder.position.y = 0.36; turn.add(shoulder);
   const yoke = _wireCyl(0.07, 0.07, 0.14, 16, 0.6); yoke.rotation.z = Math.PI/2; shoulder.add(yoke);   // pivot barrel
   for (const sx of [-1,1]) { const cap = _wireCyl(0.05, 0.05, 0.025, 8, 0.98, AMBER); cap.rotation.z = Math.PI/2; cap.position.x = sx*0.085; shoulder.add(cap); }   // octagon amber caps
-  // ---- UPPER ARM: flat riveted PLATE + hydraulic pistons ----
-  const seg1 = new THREE.Group(); shoulder.add(seg1); seg1.rotation.z = -0.55;
-  const plate = _wireLimb(0.02, 0.34, 0.16, 0.85); plate.position.y = 0.17; seg1.add(plate);   // flat wide plate (the DUM-E body panel)
-  for (let i=0;i<6;i++){ const rv = new THREE.Mesh(new THREE.SphereGeometry(0.006,6,6), cyAdd(0.5)); rv.position.set(0.011, 0.05+i*0.05, (i%2?0.06:-0.06)); seg1.add(rv); }   // rivets
-  for (const sx of [-1,1]) { const pis = _wireCyl(0.01, 0.01, 0.24, 8, 0.8); pis.position.set(sx*0.05, 0.12, 0.02); seg1.add(pis);
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.005,0.005,0.16,8), cyAdd(0.98, CHROME)); rod.position.set(sx*0.05, 0.26, 0.02); seg1.add(rod); }   // bright chrome piston rods
+  // ---- UPPER ARM ----------------------------------------------------------------------------
+  // BEND-PLANE FIX: every joint pivots about Z, so the arm swings through the XY plane. The old
+  // plate was 0.02 thin in X and 0.16 wide in Z -- paper-thin THROUGH the bend plane and broad
+  // ACROSS it, i.e. a blade bending the wrong way, with the two pistons straddling x=+/-0.05 so one
+  // sat inside the curl and one outside ("presses on the opposite side"). Now the limb is DEEP in X
+  // (in the bend plane, where a real boom carries load) and NARROW in Z, and each hydraulic cylinder
+  // SPANS its joint on the outside of the curl (-X) and is re-aimed + re-scaled every frame by
+  // _aimHydraulic, so it visibly drives the bend at any angle instead of being decoration.
+  const seg1 = new THREE.Group(); shoulder.add(seg1); seg1.rotation.z = -0.62;
+  const plate = _wireLimb(0.15, 0.34, 0.055, 0.85); plate.position.set(0.012, 0.17, 0); seg1.add(plate);   // deep in the bend plane, narrow across it
+  for (let i=0;i<6;i++){ const rv = new THREE.Mesh(new THREE.SphereGeometry(0.006,6,6), cyAdd(0.5)); rv.position.set((i%2?0.06:-0.045), 0.05+i*0.05, 0.03); seg1.add(rv); }   // rivets along the web
+  const rib1 = (y,d) => { const r = _wireLimb(0.16, 0.012, 0.062, 0.5); r.position.set(0.012, y, 0); seg1.add(r); return r; };
+  rib1(0.09); rib1(0.20); rib1(0.29);                                  // cross ribs = nooks/crannies
+  const lug1 = _wireCyl(0.018, 0.018, 0.075, 10, 0.7, CHROME); lug1.rotation.x = Math.PI/2; lug1.position.set(-0.052, 0.055, 0); seg1.add(lug1);   // cylinder anchor lug
+  _cable(seg1, new THREE.Vector3(0.05,0.03,0.03), new THREE.Vector3(0.09,0.18,0.05), new THREE.Vector3(0.04,0.33,0.02), BLUE);
   // ---- FOREARM: LONG telescoping CHROME boom + blue cable ----
-  const seg2 = new THREE.Group(); seg2.position.y = 0.34; seg1.add(seg2); seg2.rotation.z = -0.35;
-  const ehouse = _wireCyl(0.045, 0.05, 0.09, 14, 0.75); ehouse.position.y = 0.03; seg2.add(ehouse);   // elbow motor housing
-  const boom1 = _wireCyl(0.026, 0.03, 0.34, 16, 0.9, CHROME); boom1.position.y = 0.24; seg2.add(boom1);   // thick boom section (chrome)
-  const boom2 = _wireCyl(0.018, 0.022, 0.24, 14, 0.95, CHROME); boom2.position.y = 0.5; seg2.add(boom2);   // telescoped thinner section
-  for (const y of [0.14, 0.38]) { const rg = new THREE.Mesh(new THREE.TorusGeometry(0.03,0.006,8,18), cyAdd(0.7, CHROME)); rg.rotation.x = Math.PI/2; rg.position.y = y; seg2.add(rg); }   // segment rings
-  _cable(seg2, new THREE.Vector3(0.03,0.05,0.02), new THREE.Vector3(0.07,0.32,0.04), new THREE.Vector3(0.02,0.6,0.01), BLUE);
-  // ---- WRIST: CONICAL GRIPPER HOUSING + small 3-claw ----
-  const head = new THREE.Group(); head.position.y = 0.62; seg2.add(head);
+  const seg2 = new THREE.Group(); seg2.position.y = 0.34; seg1.add(seg2); seg2.rotation.z = -0.72;
+  const ehouse = _wireCyl(0.045, 0.05, 0.085, 14, 0.75); ehouse.rotation.x = Math.PI/2; ehouse.position.y = 0.02; seg2.add(ehouse);   // elbow motor housing (axle across the bend axis)
+  for (const sx of [-1,1]) { const ec = _wireCyl(0.032, 0.032, 0.016, 8, 0.95, AMBER); ec.rotation.x = Math.PI/2; ec.position.set(0, 0.02, sx*0.05); seg2.add(ec); }   // amber elbow caps
+  const boom1 = _wireCyl(0.026, 0.032, 0.30, 16, 0.9, CHROME); boom1.position.y = 0.20; seg2.add(boom1);   // thick boom section (chrome)
+  const boom2 = _wireCyl(0.017, 0.022, 0.20, 14, 0.95, CHROME); boom2.position.y = 0.44; seg2.add(boom2);   // telescoped thinner section
+  for (const y of [0.12, 0.34]) { const rg = new THREE.Mesh(new THREE.TorusGeometry(0.03,0.006,8,18), cyAdd(0.7, CHROME)); rg.rotation.x = Math.PI/2; rg.position.y = y; seg2.add(rg); }   // segment rings
+  const lug2 = _wireCyl(0.015, 0.015, 0.06, 10, 0.7, CHROME); lug2.rotation.x = Math.PI/2; lug2.position.set(-0.045, 0.05, 0); seg2.add(lug2);
+  _cable(seg2, new THREE.Vector3(0.03,0.05,0.02), new THREE.Vector3(0.07,0.30,0.04), new THREE.Vector3(0.02,0.52,0.01), BLUE);
+  // ---- WRIST LINK (seg3): the extra segment -- lets the claw curl under instead of poking straight out
+  const seg3 = new THREE.Group(); seg3.position.y = 0.54; seg2.add(seg3); seg3.rotation.z = -0.42;
+  const whouse = _wireCyl(0.028, 0.03, 0.06, 12, 0.8); whouse.rotation.x = Math.PI/2; seg3.add(whouse);
+  const link3 = _wireLimb(0.055, 0.15, 0.042, 0.85); link3.position.set(0.004, 0.075, 0); seg3.add(link3);
+  const lug3 = _wireCyl(0.012, 0.012, 0.05, 8, 0.7, CHROME); lug3.rotation.x = Math.PI/2; lug3.position.set(-0.032, 0.03, 0); seg3.add(lug3);
+  // ---- HEAD / GRIPPER: conical housing, camera eye, 3 fingers x 2 knuckles ----
+  const head = new THREE.Group(); head.position.y = 0.16; seg3.add(head);
   const wrist = _wireCyl(0.028, 0.028, 0.05, 12, 0.85); wrist.rotation.x = Math.PI/2; wrist.position.z = 0.01; head.add(wrist);
-  const funnel = _wireCyl(0.012, 0.038, 0.08, 12, 0.85); funnel.position.y = 0.05; head.add(funnel);   // tapered funnel gripper
+  const funnel = _wireCyl(0.014, 0.040, 0.085, 12, 0.85); funnel.position.y = 0.05; head.add(funnel);   // tapered funnel gripper
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.034,0.005,8,18), cyAdd(0.8, CHROME)); collar.rotation.x = Math.PI/2; collar.position.y = 0.086; head.add(collar);
   const eye = new THREE.Mesh(new THREE.SphereGeometry(0.013,12,12), cyAdd(0.95, AMBER)); eye.position.set(0,0,0.045); head.add(eye);
+  const hood = _wireCyl(0.019, 0.023, 0.02, 10, 0.55); hood.rotation.x = Math.PI/2; hood.position.set(0,0,0.052); head.add(hood);   // lens hood over the eye
+  // Each finger: proximal knuckle (j) -> distal knuckle (k). Two joints per finger = a real close,
+  // fingertips curling IN rather than three rigid prongs scissoring.
   const claw = [];
-  for (let i=0;i<3;i++){ const j = new THREE.Group(); const a=i*Math.PI*2/3; j.position.set(Math.cos(a)*0.015,0.09,Math.sin(a)*0.015); j.rotation.z=Math.cos(a)*0.35; j.rotation.x=Math.sin(a)*0.35;
-    const pr = _wireLimb(0.005, 0.045, 0.005, 0.9); pr.position.y = 0.022; j.add(pr); head.add(j); claw.push({ j, base:{ z:j.rotation.z, x:j.rotation.x } }); }
-  G.userData = { base, turn, seg1, seg2, head, eye, claw, wheels:_wheels, t:0, action:null, actionT0:0, s1Base:-0.55, s2Base:-0.35,
+  for (let i=0;i<3;i++){
+    const a = i*Math.PI*2/3;
+    const j = new THREE.Group(); j.position.set(Math.cos(a)*0.016, 0.092, Math.sin(a)*0.016);
+    j.rotation.z = Math.cos(a)*0.35; j.rotation.x = Math.sin(a)*0.35;
+    const kn = _wireCyl(0.008, 0.008, 0.016, 8, 0.8, AMBER); kn.rotation.z = Math.PI/2; j.add(kn);   // knuckle boss
+    const pr = _wireLimb(0.007, 0.040, 0.007, 0.9); pr.position.y = 0.020; j.add(pr);               // proximal phalange
+    const k = new THREE.Group(); k.position.y = 0.040; j.add(k);
+    const dp = _wireLimb(0.005, 0.030, 0.005, 0.95); dp.position.y = 0.015; k.add(dp);              // distal phalange
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.005,6,6), cyAdd(0.9, CHROME)); tip.position.y = 0.031; k.add(tip);   // rubber tip
+    head.add(j);
+    claw.push({ j, k, base:{ z:j.rotation.z, x:j.rotation.x }, curl:{ z:Math.cos(a)*0.5, x:Math.sin(a)*0.5 } });
+  }
+  // ---- HYDRAULICS: one cylinder per joint, spanning it on the OUTSIDE of the curl (-X). Built once
+  // here; _aimHydraulic re-points and re-scales the rod every frame from the live joint angle.
+  const _hyd = (parent, anchor, child, tgtLocal, len, r) => {
+    const cyl = _wireCyl(r, r, len, 10, 0.8);                 // barrel (pivots at its anchor)
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(r*0.5, r*0.5, len, 8), cyAdd(0.98, CHROME));
+    const pivot = new THREE.Group(); pivot.position.copy(anchor); parent.add(pivot);
+    pivot.add(cyl); pivot.add(rod);
+    return { pivot, cyl, rod, child, tgtLocal, len };
+  };
+  const hyd = [
+    _hyd(seg1, new THREE.Vector3(-0.052, 0.055, 0), seg2, new THREE.Vector3(-0.045, 0.05, 0), 0.22, 0.011),   // shoulder->elbow
+    _hyd(seg2, new THREE.Vector3(-0.045, 0.05, 0), seg3, new THREE.Vector3(-0.032, 0.03, 0), 0.20, 0.009),    // elbow->wrist
+  ];
+  G.userData = { base, turn, seg1, seg2, seg3, head, eye, claw, hyd, wheels:_wheels, t:0, action:null, actionT0:0,
+    s1Base:-0.62, s2Base:-0.72, s3Base:-0.42,
     nav: { state:'idle', tx:0, tz:0, carried:null, home:null, wanderT:0 } };
   return G;
+}
+// Point a joint-spanning hydraulic cylinder at its target on the child link and stretch it to fit.
+// This is what makes the arm read as HYDRAULIC: the rod visibly extends/retracts with the joint angle
+// at every pose, instead of two cosmetic tubes that never move.
+const _hydA = new THREE.Vector3(), _hydB = new THREE.Vector3(), _hydD = new THREE.Vector3();
+function _aimHydraulic(h) {
+  h.pivot.getWorldPosition(_hydA);
+  _hydB.copy(h.tgtLocal); h.child.localToWorld(_hydB);
+  _hydD.subVectors(_hydB, _hydA);
+  const d = _hydD.length(); if (d < 1e-4) return;
+  h.pivot.parent.worldToLocal(_hydB.copy(_hydB));                       // target in the pivot's parent frame
+  const local = _hydB.clone().sub(h.pivot.position);
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), local.clone().normalize());
+  h.pivot.quaternion.copy(q);                                           // barrel points down the span
+  const sc = h.pivot.getWorldScale(_hydD).x || 1, dl = d / sc;          // span in local units
+  h.cyl.scale.y = Math.max(0.25, Math.min(1.6, (dl*0.62)/h.len)); h.cyl.position.y = dl*0.31;
+  h.rod.scale.y = Math.max(0.25, Math.min(1.6, (dl*0.55)/h.len)); h.rod.position.y = dl*0.72;
 }
 const _dumeTmp = new THREE.Vector3(), _dumeTmp2 = new THREE.Vector3(), _dumeSh = new THREE.Vector3();
 const _dumeGrip = new THREE.Vector3(0, 0.11, 0.05);   // claw grip point (head-local) a fetched model is eased into
@@ -9040,21 +9115,24 @@ function _updateForge() {
   // seg1 points (-sin z, cos z): MORE NEGATIVE z tilts the boom forward/down out of the skyward rest,
   // so a relaxed idle uses s1Base MINUS an offset (a positive offset would only stand it up straighter).
   const _br = Math.sin(u.t*0.5), _dr = Math.sin(u.t*0.21 + 1.1);
-  let s1, s2, headX, clawOpen = 0.14 + Math.sin(u.t*0.6)*0.07;   // claw fidgets a touch = alive
-  if (u.powered === false) { s1 = u.s1Base - 0.55; s2 = u.s2Base - 0.70; headX = 0.45; clawOpen = 0; }   // slumped forward / offline
+  let s1, s2, s3 = null, headX, clawOpen = 0.14 + Math.sin(u.t*0.6)*0.07;   // claw fidgets a touch = alive
+  if (u.powered === false) { s1 = u.s1Base - 0.55; s2 = u.s2Base - 0.70; s3 = u.s3Base - 0.45; headX = 0.45; clawOpen = 0; }   // slumped forward / offline
   else {
-    s1 = u.s1Base - 0.24 + _br*0.11 + _dr*0.04;                     // shoulder eased DOWN-forward (lowers the boom) + breathe
-    s2 = u.s2Base - 0.34 - _br*0.09 + Math.sin(u.t*0.37+0.6)*0.05;  // elbow curls the forearm in/down, counter-breathes
-    headX = 0.16 + Math.sin(u.t*0.33)*0.11;                         // head hangs slightly + slow scan (looking around)
+    // CURVED at rest: shoulder leans out, elbow curls back over it, wrist link droops -> a hanging "C"
+    // (a hydraulic arm resting under its own weight), not the straight mast he used to stand up as.
+    s1 = u.s1Base - 0.20 + _br*0.10 + _dr*0.04;                     // shoulder eased DOWN-forward + breathe
+    s2 = u.s2Base - 0.30 - _br*0.08 + Math.sin(u.t*0.37+0.6)*0.05;  // elbow curls the forearm in/down, counter-breathes
+    s3 = u.s3Base - 0.16 + _br*0.06;                                // wrist link droops -> the claw hangs, head-down
+    headX = 0.20 + Math.sin(u.t*0.33)*0.11;                         // head hangs slightly + slow scan (looking around)
   }
-  if (u.sulk) { s1 = u.s1Base - 0.45; s2 = u.s2Base - 0.55; headX = 0.42; clawOpen = 0; }   // scolded -> sulking, boom hung low
+  if (u.sulk) { s1 = u.s1Base - 0.45; s2 = u.s2Base - 0.55; s3 = u.s3Base - 0.5; headX = 0.42; clawOpen = 0; }   // scolded -> sulking, boom hung low
   // MODEL TRACKING: the TURRET yaws toward the active hologram + the head tilts to its height (not while carrying it)
   try {
     if (!u.nav.carried && window._h3d && window._h3d.cur && typeof root !== 'undefined' && root.parent) {
       root.getWorldPosition(_dumeTmp); _forge.arm.getWorldPosition(_dumeTmp2);
       let localYaw = Math.atan2(_dumeTmp.x - _dumeTmp2.x, _dumeTmp.z - _dumeTmp2.z) - _forge.arm.rotation.y;
       while (localYaw > Math.PI) localYaw -= 2*Math.PI; while (localYaw < -Math.PI) localYaw += 2*Math.PI;
-      u.turn.rotation.y += (localYaw - u.turn.rotation.y) * 0.03;
+      u.turn.rotation.y += (localYaw - u.turn.rotation.y) * (u.gripPhase ? 0.13 : 0.03);   // TURN TO FACE it while reaching (0.03 alone was too slow to ever aim at what he was grabbing)
       headX += Math.max(-0.4, Math.min(0.3, -(_dumeTmp.y - _dumeTmp2.y)*0.25));
     }
   } catch(_){}
@@ -9125,21 +9203,43 @@ function _updateForge() {
     if (u.gripTarget) { try {
       u.seg1.parent.getWorldPosition(_dumeSh);
       const rr = Math.hypot(u.gripTarget.x - _dumeSh.x, u.gripTarget.z - _dumeSh.z), yy = u.gripTarget.y - _dumeSh.y;
-      const L1 = 0.68, L2 = 1.24, hyp = Math.hypot(rr, yy) || 1e-3;
-      const D = Math.max(0.58, Math.min(1.89, hyp)), sc = D / hyp, r2 = rr*sc, y2 = yy*sc;
+      // Link lengths RE-DERIVED for the rebuilt rig (they were 0.68/1.24 from the old 2.0-scale, 3-segment
+      // arm and no longer matched anything -- a stale reach is exactly why he bent off toward nothing).
+      // local: shoulder->elbow 0.34; elbow->claw folds through seg3's rest curl to ~0.774. Scaled by armScale.
+      const _as = (_forge.arm.scale.x || 1);
+      const L1 = 0.34*_as, L2 = 0.774*_as, hyp = Math.hypot(rr, yy) || 1e-3;
+      const D = Math.max(Math.abs(L2-L1)+0.04, Math.min(L1+L2-0.04, hyp)), sc = D / hyp, r2 = rr*sc, y2 = yy*sc;
       const c2 = Math.max(-1, Math.min(1, (r2*r2 + y2*y2 - L1*L1 - L2*L2) / (2*L1*L2)));
       const th2 = -Math.acos(c2), th1 = Math.atan2(y2, r2) - Math.atan2(L2*Math.sin(th2), L1 + L2*Math.cos(th2));
       s1t = Math.max(-1.5, Math.min(0.6, th1 - Math.PI/2));
       s2t = Math.max(-1.9, Math.min(0.4, th2));
       hxt = Math.max(-0.7, Math.min(0.6, -Math.atan2(yy, rr) + 0.2));
     } catch(_){} }
-    s1 = u.seg1.rotation.z + (s1t - u.seg1.rotation.z) * 0.12;   // ease toward the IK pose
-    s2 = u.seg2.rotation.z + (s2t - u.seg2.rotation.z) * 0.12;
-    headX = u.head.rotation.x + (hxt - u.head.rotation.x) * 0.12;
+    s1 = s1t; s2 = s2t; headX = hxt;   // raw IK targets -- the min-jerk spring below does the easing
+                                       // (the old 0.12 lerp here double-eased against it = mush)
     clawOpen = (u.gripPhase === 'reach') ? 0.7 : 0;
   } else if (u.gripPhase === 'carry') { s1 = u.s1Base + 0.25; s2 = u.s2Base + 0.15; headX = -0.1; clawOpen = 0; }
-  u.seg1.rotation.z = s1; u.seg2.rotation.z = s2; u.head.rotation.x = headX;
-  for (const c of u.claw) { c.j.rotation.z = c.base.z * (1 - clawOpen*1.5); c.j.rotation.x = c.base.x * (1 - clawOpen*1.5); }
+  // MIN-JERK JOINT EASING: the research on lifelike robot motion is unambiguous -- smooth, bell-shaped
+  // velocity (continuous accel, no step changes) reads as alive; per-frame snapping to a target reads
+  // as uncanny/robotic. Each joint is eased by a critically-damped spring toward its target, which
+  // gives that profile for free and costs one multiply-add per joint.
+  const _sp = (cur, tgt, key, k) => {   // critically-damped spring -> smooth accel + decel, no overshoot
+    const v = (u._v || (u._v = {}));
+    const x = cur + (v[key] || 0);
+    const a = (tgt - x) * (k || 0.14) - (v[key] || 0) * 0.45;
+    v[key] = (v[key] || 0) + a;
+    return x + v[key];
+  };
+  u.seg1.rotation.z = _sp(u.seg1.rotation.z, s1, 's1');
+  u.seg2.rotation.z = _sp(u.seg2.rotation.z, s2, 's2');
+  if (u.seg3) u.seg3.rotation.z = _sp(u.seg3.rotation.z, (s3 == null ? u.s3Base : s3), 's3');
+  u.head.rotation.x = _sp(u.head.rotation.x, headX, 'hx');
+  // fingers: proximal opens, distal curls IN harder (a real grip, not three scissoring prongs)
+  for (const c of u.claw) {
+    c.j.rotation.z = c.base.z * (1 - clawOpen*1.5); c.j.rotation.x = c.base.x * (1 - clawOpen*1.5);
+    if (c.k) { c.k.rotation.z = c.curl.z * (1 - clawOpen*1.35); c.k.rotation.x = c.curl.x * (1 - clawOpen*1.35); }
+  }
+  if (u.hyd) { for (const h of u.hyd) { try { _aimHydraulic(h); } catch(_){} } }   // rods follow the live joint angles
   // RECENTRE THE TURRET when idle: shake/dance twist u.turn and the model-tracker only corrects it while a
   // hologram is up, so with no model the yaw would otherwise stay stuck off-axis forever.
   if (!u.action && !u.lightOn && !u.filming) { const _trk = !u.nav.carried && window._h3d && window._h3d.cur && typeof root !== 'undefined' && root && root.parent;
