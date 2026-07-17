@@ -140,7 +140,9 @@
   #jv.standby::after{background:radial-gradient(ellipse 55% 55% at 50% 50%,transparent 20%,rgba(0,0,0,.88) 90%)!important;
     transition:background 1.5s ease-out}
   /* The reactor core breathes slowly -- the only bright element on screen */
-  #jv.standby #core{cursor:pointer;opacity:.1!important;transition:opacity 1.5s ease-out}   /* arc reactor recedes -- the dot sphere is the centre now */
+  /* When the dot sphere is ON, .dot-orb already forces #core to 0 (sphere is the centre). When the
+     sphere is OFF, the core stays the breathing centrepiece -- so standby works either way. */
+  #jv.standby #core{cursor:pointer;animation:sbCoreBreathe 5.4s ease-in-out infinite;opacity:1!important;transition:none}
   #jv.standby .core-click{cursor:pointer}
   @keyframes sbCoreBreathe{
     0%,100%{filter:drop-shadow(0 0 10px rgba(95,230,255,.5)) drop-shadow(0 0 26px rgba(95,230,255,.3));transform:scale(.92)}
@@ -4853,7 +4855,7 @@ window.addEventListener('load',()=>setTimeout(async()=>{
     const cx = canvas.width / 2, cy = canvas.height / 2, R = canvas.width * 0.34;
 
     let dotAlpha, rotSpeed;
-    if (standby)       { dotAlpha = 0.55; rotSpeed = 0.02; }
+    if (standby)       { dotAlpha = 0.82; rotSpeed = 0.03; }   /* clearly the centrepiece at rest (was .55 -- too dim to read) */
     else if (speaking) { dotAlpha = 1.0;  rotSpeed = 0.05 + master * 0.05; }
     else               { dotAlpha = 0.88; rotSpeed = 0.042; }
     _rot += rotSpeed * 0.033;
