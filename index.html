@@ -934,7 +934,7 @@ for(let i=0;i<12;i++){const a=(i*30-90)*PI/180,P=pt(258,a);
   for(let i=0;i<=24;i++){const y=150+i*10,big=i%4===0;
     hud.appendChild(el('line',{x1:gx,y1:y,x2:gx+dir*(big?9:4),y2:y,stroke:'#4fb8d8','stroke-width':big?0.9:0.5,opacity:big?0.45:0.2}));}});
 
-const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,400 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 28", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$14", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "3/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
+const A=[{"a": -90, "c": "#ff3d9a", "n": "TikTok", "v": "6,401 followers", "role": "the daily strategy report", "sched": "05:30"}, {"a": -45, "c": "#a44bff", "n": "Commerce", "v": "15 listings", "role": "the storefront and commerce bot", "sched": "always"}, {"a": 0, "c": "#2bb8ff", "n": "Study", "v": "CSA Day 28", "role": "the ServiceNow study brief", "sched": "04:15"}, {"a": 45, "c": "#ff6ad5", "n": "Radar", "v": "3 watched", "role": "competitor radar", "sched": "02:00"}, {"a": 90, "c": "#34e0a0", "n": "Sales", "v": "$0", "role": "sales conversion tracking", "sched": "live"}, {"a": 135, "c": "#2bf0e0", "n": "Cross-Post", "v": "Reels\u00b7Shorts", "role": "auto cross-posting", "sched": "auto"}, {"a": 180, "c": "#c060ff", "n": "Mission", "v": "3/3 up", "role": "the home services watchdog", "sched": "30min"}, {"a": 225, "c": "#ff9f40", "n": "Improve", "v": "self-learning", "role": "the self-improvement loop", "sched": "21:00"}];
 const spk=document.getElementById('spokes'),ag=document.getElementById('agents');
 A.forEach(o=>{const r=o.a*PI/180,c=Math.cos(r),s=Math.sin(r),dx=cx+150*c,dy=cy+150*s;
   spk.appendChild(el('line',{x1:cx+96*c,y1:cy+96*s,x2:dx,y2:dy,stroke:'#3fa8cc','stroke-width':1,opacity:0.2}));
@@ -9303,12 +9303,12 @@ function _updateForge() {
   // velocity (continuous accel, no step changes) reads as alive; per-frame snapping to a target reads
   // as uncanny/robotic. Each joint is eased by a critically-damped spring toward its target, which
   // gives that profile for free and costs one multiply-add per joint.
-  const _sp = (cur, tgt, key, k) => {   // critically-damped spring -> smooth accel + decel, no overshoot
+  const _sp = (cur, tgt, key, k) => {   // near-critically-damped spring -> smooth bell-shaped accel/decel
     const v = (u._v || (u._v = {}));
-    const x = cur + (v[key] || 0);
-    const a = (tgt - x) * (k || 0.14) - (v[key] || 0) * 0.45;
-    v[key] = (v[key] || 0) + a;
-    return x + v[key];
+    let vel = (v[key] || 0);
+    vel += (tgt - cur) * (k || 0.14) - vel * 0.5;   // spring pull toward target + damping (single integration)
+    v[key] = vel;                                   // was cur+2*vel per step -> ~18% overshoot + bounce
+    return cur + vel;
   };
   u.seg1.rotation.z = _sp(u.seg1.rotation.z, s1, 's1');
   u.seg2.rotation.z = _sp(u.seg2.rotation.z, s2, 's2');
