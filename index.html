@@ -2876,6 +2876,12 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
   const trimmed = text.trim().toLowerCase();
   // POWERDOWN -- REQUIRES jarvis addressing or imperative form. Loose match was killing him on
   // any casual mention ("powerdown" in a doc, profession mode chatter, etc.).
+  // GREEN GOOSE PROTOCOL -- hard killswitch: turns Jarvis completely off (brain+page+tunnel+guardian).
+  if(/\bgreen goose( protocol)?\b/.test(t)){
+    speak("Green goose protocol. Powering down completely, sir.","serious");
+    setTimeout(()=>{ try{ window.pywebview && window.pywebview.api && window.pywebview.api.kill(); }catch(_){}
+      try{ fullShutdown(); }catch(_){} }, 1400);   // fullShutdown = the visual off if not in the desktop shell
+    return;}
   if(/\b(shut ?down|shut it down|power down) (jarvis|yourself|the assistant)\b/.test(t)
      || /\bshut yourself down\b/.test(t)
      || (/^(jarvis[,!]?\s+)?(shut ?down|shut it down|power down)\s*[.!?]?\s*$/.test(trimmed))
