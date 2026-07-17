@@ -1143,7 +1143,6 @@ window.__GESTURE_GUIDE=GESTURE_GUIDE;   // shared with the module block for the 
 const DUME_GUIDE=[
   {grp:'FETCH & MOVE',items:[
     {c:'"bring this to me"',d:'Rolls over, claws the model, wheels back and hands it to you.'},
-    {c:'"hold this" / "hand control"',d:'Takes the model and steadies it, following your hand while you work. "Let go" releases it.'},
     {c:'"go over there"',d:'Point at a spot — he rolls there and waits until recalled.'},
     {c:'"come back" / "come here"',d:'Returns to you.'},
     {c:'"follow me" / "stop following"',d:'Trails you around, or holds.'},
@@ -3820,12 +3819,7 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
   // DUM-E the helper arm -- "dum-e, <do something>"
   { const dm = t.match(/\b(?:dum-?e|dummy)\b[,\s]*(.*)$/);
     if (dm) { const rest = dm[1] || '';
-      // HOLD / HAND-CONTROL first: "hold this" must beat both the fetch matcher and "hold position"->stay.
-      // Lore-accurate: DUM-E's documented job is holding/moving equipment while Tony works on it.
-      if (/\b(hand control off|stop holding|let go|drop it|release it|you can let go|give it back)\b/.test(rest)) {
-        if (!(window._xrPresenting && window.__xrDumeHold && window.__xrDumeHold(false))) speak("Step into the forge first, sir.","normal"); return; }
-      if (/\b(hold (?:this|it|that)|hold on to|steady (?:this|it|that)|hand control(?: on)?|manual control|let me guide)\b/.test(rest)) {
-        if (!(window._xrPresenting && window.__xrDumeHold && window.__xrDumeHold(true))) speak("Step into the forge first, sir.","normal"); return; }
+      // (DUM-E hand-control / "hold this" removed per owner: "stop the remote controls".)
       if (/\bbring|fetch|get (?:this|it|that)|come (?:get|grab)|hand (?:it|this|me|that)|give me\b/.test(rest)) {   // "bring this to me"
         if (!(window._xrPresenting && window.__xrDumeFetch && window.__xrDumeFetch())) speak("Step into the forge first, sir.","normal"); return; }
       const _dz = (fn) => { if (!(window._xrPresenting && fn && fn())) speak("Step into the forge first, sir.","normal"); };
