@@ -140,8 +140,7 @@
   #jv.standby::after{background:radial-gradient(ellipse 55% 55% at 50% 50%,transparent 20%,rgba(0,0,0,.88) 90%)!important;
     transition:background 1.5s ease-out}
   /* The reactor core breathes slowly -- the only bright element on screen */
-  #jv.standby #core{cursor:pointer;animation:sbCoreBreathe 5.4s ease-in-out infinite;
-    opacity:1!important;transition:none}
+  #jv.standby #core{cursor:pointer;opacity:.1!important;transition:opacity 1.5s ease-out}   /* arc reactor recedes -- the dot sphere is the centre now */
   #jv.standby .core-click{cursor:pointer}
   @keyframes sbCoreBreathe{
     0%,100%{filter:drop-shadow(0 0 10px rgba(95,230,255,.5)) drop-shadow(0 0 26px rgba(95,230,255,.3));transform:scale(.92)}
@@ -154,9 +153,9 @@
     opacity:0;pointer-events:none;z-index:7;display:none;
     transform-origin:center center}
   #jv.standby #sbPulse,#jv.standby #sbPulse2,#jv.standby #sbPulse3{display:block}
-  /* Keep the pulse (user likes it) but dim the dot sphere so the two don't fight/overlap -- the
-     sphere rests quietly behind while the pulse reads on top. */
-  #jv.standby #dotOrb{opacity:.42;transition:opacity 1.5s ease-out}
+  /* Standby centrepiece = the dot sphere (it REPLACES the arc-reactor circle). The pulse rings the
+     user likes emanate from it; the old SVG reactor core fades out so the sphere is the middle. */
+  #jv.standby #dotOrb{opacity:1;transition:opacity 1.5s ease-out}
   /* Each pulse uses its own drift orbit -- different timing + axis so they move "everywhere" */
   #jv.standby #sbPulse{animation:sbPulse1 5.4s linear infinite, sbDriftA 7.3s ease-in-out infinite}
   #jv.standby #sbPulse2{animation:sbPulse1 5.4s linear infinite 1.8s, sbDriftB 6.1s ease-in-out infinite}
