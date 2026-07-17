@@ -69,12 +69,15 @@
      sat mid-screen. Shrink telemetry hard, pin captions to the very bottom, hide clutter. */
   @media (max-height: 470px){
     #telemetry{transform:scale(.46);transform-origin:top right;top:2px;right:2px;opacity:.7}
-    .said{bottom:5px;font-size:11px;padding:0 8px;min-height:16px;text-shadow:0 0 10px rgba(95,230,255,.4)}
-    .rd,.rd-bl,.rd-br,.foot,.badge,.t2{display:none}
+    .said{bottom:20px;font-size:11px;padding:0 8px;min-height:15px;text-shadow:0 0 10px rgba(95,230,255,.4)}
+    .foot,.badge,.t2{display:none}
+    .rd{font-size:6px;letter-spacing:.3px;gap:2px;opacity:.62}   /* bottom stats: kept, just small */
+    .rd-bl{bottom:3px;left:6px;right:auto;flex-direction:column;flex-wrap:nowrap}
+    .rd-br{bottom:3px;right:6px}
     .t1{top:3px;left:8px;font-size:11px;letter-spacing:2.5px}
     .stat{top:3px;right:6px;font-size:8px;letter-spacing:1px;padding:4px 7px}
-    #dotOrb{width:min(84vh,84vw);height:min(84vh,84vw)}
-    #eq{bottom:2px;transform:scale(.7);transform-origin:bottom center}
+    #dotOrb{width:min(82vh,82vw);height:min(82vh,82vw)}
+    #eq{display:none}
   }
   #core{transition:filter .25s;filter:drop-shadow(0 0 7px rgba(95,230,255,.3))}
   /* Subtle heartbeat on the bright center dot only -- everything else uses existing rotation/pulse anims. */
@@ -151,6 +154,9 @@
     opacity:0;pointer-events:none;z-index:7;display:none;
     transform-origin:center center}
   #jv.standby #sbPulse,#jv.standby #sbPulse2,#jv.standby #sbPulse3{display:block}
+  /* Keep the pulse (user likes it) but dim the dot sphere so the two don't fight/overlap -- the
+     sphere rests quietly behind while the pulse reads on top. */
+  #jv.standby #dotOrb{opacity:.42;transition:opacity 1.5s ease-out}
   /* Each pulse uses its own drift orbit -- different timing + axis so they move "everywhere" */
   #jv.standby #sbPulse{animation:sbPulse1 5.4s linear infinite, sbDriftA 7.3s ease-in-out infinite}
   #jv.standby #sbPulse2{animation:sbPulse1 5.4s linear infinite 1.8s, sbDriftB 6.1s ease-in-out infinite}
