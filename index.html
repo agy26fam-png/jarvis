@@ -1143,6 +1143,7 @@ window.__GESTURE_GUIDE=GESTURE_GUIDE;   // shared with the module block for the 
 const DUME_GUIDE=[
   {grp:'FETCH & MOVE',items:[
     {c:'"bring this to me"',d:'Rolls over, claws the model, wheels back and hands it to you.'},
+    {c:'"hold this" / "hand control"',d:'Takes the model and steadies it, following your hand while you work. "Let go" releases it.'},
     {c:'"go over there"',d:'Point at a spot — he rolls there and waits until recalled.'},
     {c:'"come back" / "come here"',d:'Returns to you.'},
     {c:'"follow me" / "stop following"',d:'Trails you around, or holds.'},
@@ -3819,7 +3820,12 @@ async function handle(text){const t=' '+text.toLowerCase()+' ';
   // DUM-E the helper arm -- "dum-e, <do something>"
   { const dm = t.match(/\b(?:dum-?e|dummy)\b[,\s]*(.*)$/);
     if (dm) { const rest = dm[1] || '';
-      // (DUM-E hand-control / "hold this" removed per owner: "stop the remote controls".)
+      // HOLD / HAND-CONTROL first: "hold this" must beat both the fetch matcher and "hold position"->stay.
+      // Lore-accurate: DUM-E's documented job is holding/moving equipment while Tony works on it.
+      if (/\b(hand control off|stop holding|let go|drop it|release it|you can let go|give it back)\b/.test(rest)) {
+        if (!(window._xrPresenting && window.__xrDumeHold && window.__xrDumeHold(false))) speak("Step into the forge first, sir.","normal"); return; }
+      if (/\b(hold (?:this|it|that)|hold on to|steady (?:this|it|that)|hand control(?: on)?|manual control|let me guide)\b/.test(rest)) {
+        if (!(window._xrPresenting && window.__xrDumeHold && window.__xrDumeHold(true))) speak("Step into the forge first, sir.","normal"); return; }
       if (/\bbring|fetch|get (?:this|it|that)|come (?:get|grab)|hand (?:it|this|me|that)|give me\b/.test(rest)) {   // "bring this to me"
         if (!(window._xrPresenting && window.__xrDumeFetch && window.__xrDumeFetch())) speak("Step into the forge first, sir.","normal"); return; }
       const _dz = (fn) => { if (!(window._xrPresenting && fn && fn())) speak("Step into the forge first, sir.","normal"); };
@@ -9297,12 +9303,12 @@ function _updateForge() {
   // velocity (continuous accel, no step changes) reads as alive; per-frame snapping to a target reads
   // as uncanny/robotic. Each joint is eased by a critically-damped spring toward its target, which
   // gives that profile for free and costs one multiply-add per joint.
-  const _sp = (cur, tgt, key, k) => {   // near-critically-damped spring -> smooth bell-shaped accel/decel
+  const _sp = (cur, tgt, key, k) => {   // critically-damped spring -> smooth accel + decel, no overshoot
     const v = (u._v || (u._v = {}));
-    let vel = (v[key] || 0);
-    vel += (tgt - cur) * (k || 0.14) - vel * 0.5;   // spring pull toward target + damping (single integration)
-    v[key] = vel;                                   // was cur+2*vel per step -> ~18% overshoot + bounce
-    return cur + vel;
+    const x = cur + (v[key] || 0);
+    const a = (tgt - x) * (k || 0.14) - (v[key] || 0) * 0.45;
+    v[key] = (v[key] || 0) + a;
+    return x + v[key];
   };
   u.seg1.rotation.z = _sp(u.seg1.rotation.z, s1, 's1');
   u.seg2.rotation.z = _sp(u.seg2.rotation.z, s2, 's2');
