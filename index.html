@@ -64,6 +64,18 @@
     #vrBtn{right:10px !important;bottom:calc(14px + env(safe-area-inset-bottom)) !important;
       width:auto !important;padding:6px 10px !important;font-size:9px !important}
   }
+  /* COMPACT CORNER MODE -- the 400x300 desktop OS window. The phone breakpoint above is tuned for
+     tall screens; in a short window the telemetry stayed big (cutting into Jarvis) and the caption
+     sat mid-screen. Shrink telemetry hard, pin captions to the very bottom, hide clutter. */
+  @media (max-height: 470px){
+    #telemetry{transform:scale(.46);transform-origin:top right;top:2px;right:2px;opacity:.7}
+    .said{bottom:5px;font-size:11px;padding:0 8px;min-height:16px;text-shadow:0 0 10px rgba(95,230,255,.4)}
+    .rd,.rd-bl,.rd-br,.foot,.badge,.t2{display:none}
+    .t1{top:3px;left:8px;font-size:11px;letter-spacing:2.5px}
+    .stat{top:3px;right:6px;font-size:8px;letter-spacing:1px;padding:4px 7px}
+    #dotOrb{width:min(84vh,84vw);height:min(84vh,84vw)}
+    #eq{bottom:2px;transform:scale(.7);transform-origin:bottom center}
+  }
   #core{transition:filter .25s;filter:drop-shadow(0 0 7px rgba(95,230,255,.3))}
   /* Subtle heartbeat on the bright center dot only -- everything else uses existing rotation/pulse anims. */
   .reactorBrightCenter{transform-origin:430px 270px;animation:reactorHeartbeat 2.4s ease-in-out infinite}
